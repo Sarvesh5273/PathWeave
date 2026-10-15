@@ -1,0 +1,19 @@
+# Local credentials
+.env
+.env.*
+!.env.example
+*.pem
+
+# Private research / team invitation material
+docs/private/
+
+# Runtime output
+__pycache__/
+*.py[cod]
+.venv/
+node_modules/
+dist/
+.pytest_cache/
+reports/local/
+.DS_Store
+

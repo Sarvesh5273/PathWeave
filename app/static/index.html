@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Just Chill · Internship preparation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar"><a class="brand" href="/"><span class="brandmark">j<span>c</span></span><span>just chill<span class="brand-sub">INTERNSHIP PREPARATION</span></span></a><div class="top-status"><span id="db-dot" class="dot"></span><span id="health-text">Checking graph</span><span class="divider"></span><span class="demo-pill">SYNTHETIC STUDENT</span></div></header>
+<main>
+<section class="hero"><div><div class="eyebrow"><span class="tiny-dot"></span> YOUR NEXT CHAPTER, WITH A PLAN</div><h1>Find the right opportunity.<br><span>Prepare with context.</span></h1><p>One preparation plan across your targets. Shared work once.<br>Every requirement traced back to its source.</p></div><div class="hero-note"><span class="note-label">BUILT ON CONNECTED CONTEXT</span><div class="mini-chain"><i></i><b></b><i></i><b></b><i></i></div><p>Requirements → dependencies → next action</p><span>Powered by FalkorDB</span></div></section>
+<nav class="steps"><button class="step active" data-step="discover"><span>01</span>Discover & select</button><span class="step-line"></span><button class="step" data-step="plan"><span>02</span>Your preparation plan</button><span class="step-line"></span><button class="step" data-step="evidence"><span>03</span>Review the evidence</button></nav>
+<div id="notification" role="status" class="notification hidden"></div>
+<div id="source-controls" class="source-controls hidden"><select id="refresh-source" aria-label="Source to refresh"></select><button id="refresh-btn" class="secondary">Refresh official source</button><span>Review changed or uncertain requirements before accepting a plan.</span></div>
+<section id="discover-section">
+<div class="section-head"><div><h2>Opportunities worth exploring</h2><p>Search public sources. Choose the targets you want to prepare for.</p></div><button id="examples-btn" class="text-btn">Load sourced examples <span>↗</span></button></div>
+<form id="search-form" class="searchbar"><span class="search-icon">⌕</span><input id="search-query" value="funded research internships 2027 EPFL OIST" placeholder="Research area, organization, or internship…" aria-label="Search internships"><button type="submit" id="search-btn">Search live <span>→</span></button></form>
+<div class="source-caption"><span class="tiny-dot"></span><span id="source-caption">Live discovery via TinyFish · Official pages · Unknowns stay visible</span></div>
+<div class="workspace">
+<div class="results"><div class="filterline"><div class="filtertabs"><button class="filter active" data-category="All">All opportunities</button><button class="filter" data-category="Research">Research</button><button class="filter" data-category="Company">Company</button></div><span id="result-count">0 opportunities</span></div><div id="opportunity-cards" class="cards"><div class="empty-state"><span class="empty-icon">↗</span><h3>Start with a source.</h3><p>Run a live search or load examples captured from official pages.<br>Examples are clearly marked with their original checked date.</p></div></div></div>
+<aside class="sidebar"><div class="aside-head"><span class="eyebrow">YOUR TARGETS</span><span id="selection-count">0 / 3</span></div><div id="selected-list" class="selected-list"><p class="muted">Choose up to three opportunities.<br>Selection does not mean eligibility.</p></div><div class="aside-rule"></div><div class="aside-head"><span class="eyebrow">YOUR WEEK, REALISTICALLY</span><span>DEMO PROFILE</span></div><label class="field-label">Hours available per week<div class="hours-control"><input type="number" id="weekly-hours" min="0" max="80" value="6"><span>hours</span></div></label><label class="field-label">Preparation starts<input type="date" id="start-date" value="2026-10-19"></label><label class="field-label">Exam week starts<input type="date" id="exam-week" value="2026-11-02"></label><p class="field-help">This week stays free. Both tracks share your hours.</p><div class="profile-note"><span>ⓘ</span><p>Illustrative Indian undergraduate. No personal documents are uploaded.</p></div><button id="plan-btn" class="primary full" disabled>Build my plan <span>→</span></button><button id="agent-btn" class="secondary full" disabled>Review with the agent</button></aside>
+</div>
+</section>
+<section id="plan-section" class="hidden">
+<div class="section-head"><div><span class="eyebrow">ONE PLAN, ALL YOUR TARGETS</span><h2>Your next useful move</h2></div><div class="actions"><button id="back-btn" class="secondary">Edit targets</button><button id="accept-btn" class="primary" disabled>Accept this plan</button></div></div>
+<div id="plan-empty" class="empty-state"><h3>Select your targets first.</h3><p>Your preparation plan will appear here.</p></div>
+<div id="plan-content" class="hidden">
+<div class="next-action"><div><span class="eyebrow">NEXT ACTION</span><h3 id="next-action-text"></h3><p id="plan-mode-note"></p></div><span class="next-arrow">↗</span></div>
+<div class="metrics"><div><span>Preparation effort</span><b id="metric-effort">—</b><small>estimated remaining work</small></div><div><span>Available capacity</span><b id="metric-capacity">—</b><small>exam weeks protected</small></div><div><span>Shared preparation</span><b id="metric-shared">—</b><small>counted once across targets</small></div><div><span>Plan state</span><b id="metric-state">—</b><small id="metric-version"></small></div></div>
+<div id="plan-warnings" class="warnings"></div>
+<div class="plan-layout"><div><div class="section-head compact"><h3>The weekly plan</h3><span>ONE SHARED BUDGET</span></div><div id="timeline" class="timeline"></div><div class="section-head compact"><h3>Preparation & blockers</h3><span>ESTIMATES, NOT GUARANTEES</span></div><div id="task-list" class="task-list"></div></div><aside><h3 class="aside-title">Target checks</h3><div id="target-checks"></div><div class="simulation-panel"><span class="eyebrow">SEE WHAT CHANGES</span><h3>One requirement changes.<br>What needs attention?</h3><p>Try a labeled policy simulation in a separate graph. Official source data stays unchanged.</p><select id="simulation-target" aria-label="Simulation target"></select><button id="simulate-btn" class="secondary full">Simulate two required references <span>↗</span></button><div id="impact-details"></div></div></aside></div>
+</div>
+</section>
+<section id="evidence-section" class="hidden"><div class="section-head"><div><span class="eyebrow">WHY THE PLAN SAYS THIS</span><h2>Evidence you can follow</h2><p>Actual graph paths and the source fragments behind them.</p></div></div><div id="evidence-list" class="evidence-list"><div class="empty-state"><p>Build a plan to inspect its supporting evidence.</p></div></div><div id="agent-trace" class="agent-trace hidden"></div></section>
+</main>
+<footer><span>just chill · Graph Hacks 2026</span><span>Public source facts + synthetic scenario · Plans remain estimates</span><span>FalkorDB × TinyFish × Groq</span></footer>
+<script src="/static/app.js"></script>
+</body></html>
+
