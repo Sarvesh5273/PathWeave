@@ -1,5 +1,9 @@
 # Decision log
 
+Current state: verified local MVP; public deployment, recorded video, participant
+walkthrough and submission remain pending. D014 and task.md describe current behavior;
+earlier dated entries preserve history and are not instructions to undo progress.
+
 ## D001 — Source of truth (Oct 15)
 
 Confirmed: WeMakeDevs official event rules, schedule and FAQ are the event sources.

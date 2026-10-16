@@ -12,7 +12,7 @@ You are my advisor, not my assistant. Your job is accuracy, not agreement. Follo
 # Project continuity
 
 - This workspace is for Graph Hacks: Context for AI Agents, October 15–18, 2026.
-- On resume, read task.md, docs/decisions.md, docs/hackathon-review.md, then the relevant files in docs/hackathon-build/.
+- On resume, read docs/next-session.md, task.md, docs/decisions.md, docs/hackathon-review.md, then the relevant files in docs/hackathon-build/. Current task state and the latest decisions supersede historical planning entries. Do not restart completed work or repeat answered questions.
 - All project scheduling uses IST (Asia/Kolkata, UTC+05:30).
 - Official rules and closing time are sourced from WeMakeDevs. The actual submission opening time is disputed; see the review.
 - Do not route this event into Devpost or treat a local checklist as proof of registration or submission.
@@ -22,4 +22,5 @@ You are my advisor, not my assistant. Your job is accuracy, not agreement. Follo
 - Record Sarvesh's contribution and understanding plus AI use in build-notes.md. Do not claim he reviewed or tested work without evidence.
 - Keep private pasted material and team invitation details in docs/private/, which is ignored by Git. Keep credentials out of source and public documentation.
 - Sarvesh explicitly authorized autonomous implementation with independent agents and root review. Research, local edits and necessary verification are authorized. Registration changes, team invitations, messages to organizers, paid services, publication, and final submission need the applicable user authorization.
+- Conserve compute without reducing quality: use bounded agent tasks and compact outputs; flag substantial additional work before broad research, large agent runs or rendering. Repeat tests only for concrete changes, remaining risks or required gates.
 

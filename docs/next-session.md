@@ -2,6 +2,20 @@
 
 Work paused at Sarvesh's explicit request. Do not continue until asked.
 
+## First message in a new chat
+
+Open the same workspace and send:
+
+> Resume Just_Chill. Read AGENTS.md, docs/next-session.md, task.md and docs/decisions.md. Summarize the current state, then walk me through the working app before continuing the flagged delivery tasks. Conserve compute and flag substantial additional work.
+
+This prompt is a request to resume; the earlier wrap-up pause does not require a second
+confirmation. The original vision, accepted scope, rules, reviews, implementation,
+verification, contribution and remaining work are saved here. Read the current tracker
+and latest decisions before historical notes. No need to repeat the project brief.
+
+Git checkpoint: d8cc9cf contains the verified local MVP. A later documentation-only
+checkpoint adds these resume instructions. No code changed after that verification.
+
 ## Saved state
 
 Local internship preparation MVP implemented. 133 regression tests passed, including
@@ -9,8 +23,10 @@ real FalkorDB graph cases. Real TinyFish Search/Fetch and a Groq Qwen tool workf
 Accepted plan survived database container restart. Browser plan, receipt, refresh and
 selective simulation were checked. Details: verification.md.
 
-API is still available at http://127.0.0.1:18080. FalkorDB uses the persistent Compose
-volume. Agents are completed and kept listed. No scheduled background work exists.
+API was last running at http://127.0.0.1:18080. Recheck its health when resumed rather
+than assuming the process or credentials survived a new session. FalkorDB uses the
+persistent Compose volume. Previous agents finished; their outputs are saved in docs.
+Do not depend on prior chat agent handles. No scheduled background work exists.
 
 ## First step when resumed
 
