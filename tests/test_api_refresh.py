@@ -37,6 +37,7 @@ def api(monkeypatch):
     graph = GraphStore(config)
     assert graph.health()["status"] == "ok", "Real local FalkorDB is unavailable; API refresh proof cannot pass."
     monkeypatch.setattr(main, "store", graph)
+    monkeypatch.setattr(main, "settings", replace(settings, demo_tools_enabled=True))
     try:
         with TestClient(main.app) as client:
             yield client, graph, monkeypatch

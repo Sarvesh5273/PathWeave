@@ -8,11 +8,16 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from app.models import Opportunity, PreparationTask
+from app.topics import SKILL_ALIASES, SKILL_FIELDS, SKILL_FOUNDATIONS, catalog_key
 
 
 RECIPE_VERSION = "v1"
 SHARED_CV = "shared/cv-base/v1"
 SHARED_TRANSCRIPT = "shared/transcript-base/v1"
+
+
+def _skill_key(value: str) -> str | None:
+    return catalog_key(value)
 
 
 @dataclass(frozen=True)
@@ -49,8 +54,9 @@ def _deadline(opportunity: Opportunity) -> str | None:
 def recipes_for(opportunity: Opportunity) -> RecipeBundle:
     """Choose work from typed facts; ID prefixes are irrelevant to program behavior.
 
-    Compatibility applies only to the two named base artifacts. A final document is
-    always target scoped. Preparation hours do not claim official required effort.
+    Only explicitly reviewed base artifacts/exercises share work. Final documents
+    and source-evidence reviews remain scoped. Completion means preparation work
+    done, not assessed competence. Hours do not claim official required effort.
     """
     facts = {fact.name: fact for fact in opportunity.facts}
     due_at = _deadline(opportunity)
@@ -209,6 +215,83 @@ def recipes_for(opportunity: Opportunity) -> RecipeBundle:
                    waiting_for=f"{opportunity.id}/institution_approval_confirmed",
                    artifact_type="institution_approval")
         deliver("institution_approval", task, names)
+
+    for name in sorted(SKILL_FIELDS & facts.keys()):
+        fact = facts[name]
+        names = [name]
+        supported = (isinstance(fact.value, list) and bool(fact.value)
+                     and all(isinstance(item, str) and item.strip() for item in fact.value))
+        usable = supported and bool(fact.excerpt.strip()) and fact.status != "conflicting"
+        if fact.status != "known" or not usable:
+            task = add(f"verify-{name}", f"Verify {name.replace('_', ' ')} and preparation scope for {opportunity.program}",
+                       0.25, 0.5, names, artifact_type="requirements_verification")
+            deliver(f"verify_{name}", task, names, "planner_estimate")
+        if not usable:
+            continue
+        items = list(dict.fromkeys(fact.value))
+        # Language examples/alternatives do not make every language mandatory.
+        # One identical language-neutral exercise is safe to share; the target's
+        # review explicitly retains the source's options and quantifier uncertainty.
+        alternatives = ("programming_languages" in name and
+                        bool(re.search(r"\b(?:one of|at least one|such as|e\.g|or)\b", fact.excerpt, re.I)))
+        if alternatives and any(_skill_key(item) is not None for item in items):
+            # Unsupported options still need verification. If no option has a
+            # reviewed recipe, do not manufacture a generic substitute syllabus.
+            items = ["general purpose programming"] + [item for item in items if _skill_key(item) is None]
+        reviewed: dict[str, list[str]] = {}
+        for item in items:
+            key = _skill_key(item)
+            if key is None:
+                digest = hashlib.sha256(item.encode()).hexdigest()[:10]
+                task = add(f"verify-{name}-{digest}",
+                           f"Verify preparation options for {item} for {opportunity.program} (no reviewed syllabus)",
+                           0.25, 0.5, names, artifact_type="unsupported_requirement")
+                deliver(f"{name}_{digest}", task, names, "planner_estimate")
+            else:
+                reviewed.setdefault(key, []).append(item)
+        for key, labels in reviewed.items():
+            title, low, high = SKILL_FOUNDATIONS[key]
+            base = add(f"skill-{key}-base", title + " (preparation, not competence assessment)",
+                       low, high, [], shared_id=f"shared/skill-{key}-foundation/v1",
+                       artifact_type="skill_practice")
+            qualifier = "; confirm the listed language options" if alternatives else ""
+            task = add(f"{name}-{key}-review",
+                       f"Review {', '.join(labels)} practice and existing evidence for {opportunity.program}{qualifier} (not assessed competence)",
+                       0.5, 1.0, names, dependencies=[base], artifact_type="skill_evidence_review")
+            deliver(f"{name}_{key}_preparation", task, names, "planner_estimate")
+
+    # These are evidence-inventory exercises, not invented application documents
+    # or hiring stages. No exercise manufactures professional/research experience.
+    evidence_fields = {
+        "portfolio": "Review existing portfolio evidence and source expectations",
+        "software_development_experience": "Map existing software-development evidence and identify gaps",
+        "data_cloud_ai_experience": "Map existing data/cloud/AI evidence and identify gaps",
+        "host_unit_background": "Review the selected host unit's background expectations and existing evidence",
+        "research_areas": "Map existing work to the source's research areas and record gaps",
+        "research_interests": "Review source research interests against existing coursework and projects",
+    }
+    for name, title in evidence_fields.items():
+        fact = facts.get(name)
+        if fact is None or (fact.status == "known" and fact.value is False):
+            continue
+        if fact.status != "known" or not fact.excerpt.strip() or fact.value is None:
+            title = f"Verify {name.replace('_', ' ')} expectations with the source"
+            low, high, artifact = 0.25, 0.5, "requirements_verification"
+        else:
+            low, high, artifact = 1.0, 2.0, "experience_evidence_review"
+        task = add(f"{name}-evidence-review", f"{title} for {opportunity.program} (not competence certification)",
+                   low, high, [name], artifact_type=artifact)
+        deliver(f"{name}_preparation", task, [name], "planner_estimate")
+
+    source_conditions = [name for name,fact in facts.items() if
+        (name.startswith('source_requirement_') or name.startswith('source_preference_') or
+         name in {'application_process','interview_stages','coding_challenge','pathway_requirements'})
+        and fact.status=='known' and fact.excerpt]
+    if source_conditions:
+        task = add('source-condition-review',
+            f"Review the listed qualifications and selection process for {opportunity.program}",
+            0.5,1.0,source_conditions,artifact_type='requirements_verification')
+        deliver('source_condition_review',task,source_conditions,'planner_estimate')
 
     review_names = set(common_names + ["portal_status"])
     for task_id in final_tasks:

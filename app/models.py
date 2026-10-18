@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+RATING_VALUES = {"comfortable", "review", "new", "unsure"}
 
 
 class Fact(BaseModel):
@@ -46,6 +48,9 @@ class Opportunity(BaseModel):
     facts: list[Fact] = Field(default_factory=list)
     summary: str = ""
 
+    # Source-linked discovery metadata, distinct from typed preparation requirements.
+    discovery: dict[str, Any] = Field(default_factory=dict)
+
 
 class EvidencePath(BaseModel):
     target_id: str = ""
@@ -71,31 +76,92 @@ class PreparationTask(BaseModel):
     due_at: str | None = None
 
 
+class TopicInfo(BaseModel):
+    """A reviewed learning topic reached from a selected target's sourced facts."""
+
+    key: str
+    title: str = ""
+    family: str = ""
+    prerequisites: list[str] = Field(default_factory=list)
+    resources: list[dict[str, str]] = Field(default_factory=list)
+    required_by: dict[str, list[str]] = Field(default_factory=dict)
+
+
 class GraphContext(BaseModel):
     opportunities: list[Opportunity] = Field(default_factory=list)
     tasks: list[PreparationTask] = Field(default_factory=list)
     evidence: list[EvidencePath] = Field(default_factory=list)
     fact_versions: dict[str, str] = Field(default_factory=dict)
+    topics: list[TopicInfo] = Field(default_factory=list)
+
+
+class RoadmapTopic(BaseModel):
+    """One ordered roadmap entry; ratings and progress are self-reported."""
+
+    key: str
+    title: str
+    family: str = ""
+    order: int = 0
+    rating: str = ""
+    start_here: bool = False
+    prerequisites: list[str] = Field(default_factory=list)
+    resources: list[dict[str, str]] = Field(default_factory=list)
+    task_ids: list[str] = Field(default_factory=list)
+    task_status: str = ""
+    required_by: dict[str, list[str]] = Field(default_factory=dict)
+    scheduled: bool = False
+    note: str = ""
 
 
 class ProfileState(BaseModel):
-    id: str = "demo-student"
-    synthetic: bool = True
-    country: str | None = "India"
-    degree: str | None = "BTech"
-    field: str | None = "computer_science"
-    year: int | None = 3
-    total_years: int | None = 4
-    institution_type: str | None = "non_iit"
+    id: str = "unassigned"
+    synthetic: bool = False
+    country: str | None = Field(default=None, max_length=100)
+    degree: str | None = Field(default=None, max_length=100)
+    field: str | None = Field(default=None, max_length=100)
+    year: int | None = Field(default=None, ge=1, le=20)
+    total_years: int | None = Field(default=None, ge=1, le=20)
+    institution_type: str | None = Field(default=None, max_length=100)
     institution_listed: bool | None = None
     right_to_work_singapore: bool | None = None
     weekly_hours: float = Field(default=6, ge=0, le=80)
-    start_date: str = "2026-10-19"
+    start_date: str = Field(default_factory=lambda: datetime.now(timezone(timedelta(hours=5, minutes=30))).date().isoformat())
     horizon_weeks: int = Field(default=8, ge=1, le=52)
-    exam_weeks: list[str] = Field(default_factory=lambda: ["2026-11-02"])
+    exam_weeks: list[str] = Field(default_factory=list)
+    holidays: list[str] = Field(default_factory=list)
+    weekly_pattern: dict[str, float] = Field(default_factory=dict)
+    skill_ratings: dict[str, str] = Field(default_factory=dict)
     completed_task_ids: list[str] = Field(default_factory=list)
     received_events: list[str] = Field(default_factory=list)
-    skills: dict[str, str] = Field(default_factory=lambda: {"python": "self_reported", "research": "not_assessed"})
+    skills: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("weekly_pattern", mode="before")
+    @classmethod
+    def _valid_pattern(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return {}
+        pruned: dict[str, float] = {}
+        for key, item in value.items():
+            key = str(key)
+            if key not in {"0", "1", "2", "3", "4", "5", "6"}:
+                continue
+            try:
+                number = float(item)
+            except (TypeError, ValueError):
+                continue
+            if 0 <= number <= 24:
+                pruned[key] = number
+        return pruned
+
+    @field_validator("skill_ratings", mode="before")
+    @classmethod
+    def _valid_ratings(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return {}
+        return {
+            str(key)[:60]: item for key, item in value.items()
+            if isinstance(item, str) and item in RATING_VALUES
+        }
 
 
 class CriterionResult(BaseModel):
@@ -147,6 +213,7 @@ class Plan(BaseModel):
     total_hours_high: float = 0
     available_hours: float = 0
     weekly_used: dict[str, float] = Field(default_factory=dict)
+    roadmap: list[RoadmapTopic] = Field(default_factory=list)
     status: Literal["proposed", "accepted", "stale", "superseded"] = "proposed"
     next_action: str = ""
     warnings: list[str] = Field(default_factory=list)
@@ -197,4 +264,3 @@ class ToolTrace(BaseModel):
     result_summary: str = ""
     mode: str = "live"
     outcome: Literal["executed", "rejected", "failed"] = "executed"
-

@@ -88,7 +88,7 @@ def proposal(store, selected_ids, plan_id="proposal-one"):
             status="completed" if task.id == SHARED_CV else "waiting" if task.waiting_for else "scheduled",
             hours_low=task.hours_low, hours_high=task.hours_high, fact_version_ids=versions,
         ))
-    return Plan(id=plan_id, selected_ids=selected_ids, profile=ProfileState(completed_task_ids=[SHARED_CV]),
+    return Plan(id=plan_id, selected_ids=selected_ids, profile=ProfileState(id="demo-student", completed_task_ids=[SHARED_CV]),
                 targets=[TargetAssessment(target_id=target,
                            used_fact_versions=[v for key, v in context.fact_versions.items() if key.startswith(f"{target}/")])
                          for target in selected_ids],

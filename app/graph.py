@@ -28,9 +28,11 @@ from app.models import (
     Plan,
     PreparationTask,
     SourceSnapshot,
+    TopicInfo,
     utc_now,
 )
 from app.recipes import recipes_for
+from app.topics import catalog_rows, fact_topic_links, prerequisite_closure, topic_keys_for
 
 
 QUERY_DIR = Path(__file__).resolve().parents[1] / "queries"
@@ -39,6 +41,7 @@ REQUIREMENT_SET = "requirement_set"
 MAX_PLAN_FACTS = (MAX_FACTS + 1) * 3
 MAX_SELECTED = 3
 MAX_TASKS = 192
+MAX_TOPICS = 64
 MAX_PATH_ROWS = 1000
 MAX_VIEW_NODES = 160
 MAX_VIEW_EDGES = 240
@@ -327,7 +330,36 @@ class GraphStore:
             {"id": d.id, "name": d.name, "task_id": d.task_id, "provenance": d.provenance}
             for d in bundle.deliverables
         ]}, write=True)
+        self._write_topics(opportunity)
         self._run("recipe_ready.cypher", {"opportunity_id": opportunity.id}, write=True)
+
+    def _write_topics(self, opportunity: Opportunity) -> None:
+        """Idempotently map current sourced facts to the reviewed topic graph."""
+        self._run("reset_topic_fact_links.cypher", {"prefix": f"{opportunity.id}/"}, write=True)
+        keys = prerequisite_closure(topic_keys_for(opportunity))
+        if not keys:
+            return
+        rows = catalog_rows(keys)
+        self._run("upsert_topics.cypher", {"topics": [
+            {"key": topic["key"], "title": topic["title"], "family": topic["family"],
+             "payload": _json(topic)}
+            for topic in rows["topics"]
+        ]}, write=True)
+        if rows["resources"]:
+            self._run("upsert_topic_resources.cypher", {"resources": rows["resources"]}, write=True)
+        if rows["edges"]:
+            self._run("topic_prerequisite_edges.cypher", {"edges": rows["edges"]}, write=True)
+        links = fact_topic_links(opportunity)
+        if links:
+            self._run("topic_fact_links.cypher", {"links": links}, write=True)
+
+    def backfill_topics(self) -> int:
+        """Map saved source facts into the topic graph without provider calls."""
+        with self._lock:
+            opportunities = self.list_opportunities()
+            for opportunity in opportunities:
+                self._write_topics(opportunity)
+            return len(opportunities)
 
     @staticmethod
     def _opportunity(row: list[Any]) -> Opportunity:
@@ -435,7 +467,47 @@ class GraphStore:
                 tasks=sorted(tasks.values(), key=lambda task: task.id),
                 evidence=self._unique_paths(evidence),
                 fact_versions=versions,
+                topics=self._topics(selected_ids),
             )
+
+    def _topics(self, selected_ids: list[str]) -> list[TopicInfo]:
+        rows = self._run("topic_fact_map.cypher", {"selected_ids": selected_ids})
+        if not rows:
+            return []
+        closure = self._run("topic_prereq_closure.cypher", {"selected_ids": selected_ids})
+        if len(closure) > MAX_TOPICS:
+            raise GraphIntegrityError("Learning topic closure exceeds the bounded context limit.")
+        topics: dict[str, TopicInfo] = {}
+        for key, payload in closure:
+            if key in topics:
+                continue
+            data: dict[str, Any] = {}
+            if payload:
+                try:
+                    parsed = json.loads(payload)
+                    if isinstance(parsed, dict):
+                        data = parsed
+                except ValueError:
+                    data = {}
+            topics[key] = TopicInfo(
+                key=key, title=str(data.get("title", "")), family=str(data.get("family", "")),
+                prerequisites=[item for item in data.get("prerequisites", []) if isinstance(item, str)],
+                resources=[item for item in data.get("resources", [])
+                           if isinstance(item, dict) and isinstance(item.get("title"), str)
+                           and isinstance(item.get("url"), str)],
+            )
+        for target_id, fact_id, key, _payload in rows:
+            topic = topics.get(key)
+            if topic is None:
+                continue
+            name = fact_id[len(target_id) + 1:] if fact_id.startswith(f"{target_id}/") else fact_id
+            names = topic.required_by.setdefault(target_id, [])
+            if name not in names:
+                names.append(name)
+        for topic in topics.values():
+            for names in topic.required_by.values():
+                names.sort()
+        return [topics[key] for key in sorted(topics)]
 
     @staticmethod
     def _unique_paths(paths: list[EvidencePath]) -> list[EvidencePath]:

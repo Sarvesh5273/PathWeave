@@ -4,6 +4,11 @@ The graph owns which work is required and which artifacts are compatible. This
 module validates that closure, assesses a small typed criterion vocabulary, and
 allocates conservative effort estimates against one calendar. It never discovers
 requirements or infers receipt of a third-party document from elapsed time.
+
+Since v0.7 it also orders the graph's reviewed learning topics by prerequisite
+into a self-reported roadmap and honors per-day availability patterns, exam
+weeks and holiday dates. Topics, prerequisites and resources are team-authored
+guidance; ratings are self-reports, never assessed knowledge.
 """
 
 from __future__ import annotations
@@ -27,6 +32,7 @@ from app.models import (
     PlanTask,
     PreparationTask,
     ProfileState,
+    RoadmapTopic,
     TargetAssessment,
 )
 
@@ -183,7 +189,7 @@ def _eligibility(fact: Fact, profile: ProfileState, opportunity: Opportunity) ->
         if value is False:
             return "met", "The sourced condition does not require institution approval."
         if f"{opportunity.id}/institution_approval_confirmed" in profile.received_events:
-            return "met", "Home-institution approval is explicitly recorded as an observed event in the synthetic profile."
+            return "met", "Home-institution approval is recorded by the user; it has not been independently verified."
         return "unknown", "Home-institution approval has not been observed; being listed is a separate condition."
     return "unknown", "The profile has no verified input for this sourced requirement; human review is needed."
 
@@ -308,6 +314,65 @@ def _same_recipe(old: PlanTask, task: PreparationTask, versions: list[str], impa
     return False
 
 
+def _roadmap(context: GraphContext, profile: ProfileState, plan_tasks: dict[str, PlanTask],
+             tasks: dict[str, PreparationTask]) -> list[RoadmapTopic]:
+    """Order the graph's reviewed topics by prerequisites with self-reported status.
+
+    Ordering is dependency-first and stable; topics without a scheduled shared
+    foundation task are shown as prerequisite guidance only. Ratings never remove
+    required work; they only explain where to start and how to review.
+    """
+    topics = {topic.key: topic for topic in context.topics}
+    if not topics:
+        return []
+    ratings = profile.skill_ratings
+    degree = {key: sum(1 for prerequisite in topic.prerequisites if prerequisite in topics)
+              for key, topic in topics.items()}
+    children: dict[str, list[str]] = defaultdict(list)
+    for key, topic in topics.items():
+        for prerequisite in topic.prerequisites:
+            if prerequisite in topics:
+                children[prerequisite].append(key)
+    ready = sorted(key for key, value in degree.items() if value == 0)
+    order_keys: list[str] = []
+    while ready:
+        key = ready.pop(0)
+        order_keys.append(key)
+        for child in sorted(children[key]):
+            degree[child] -= 1
+            if degree[child] == 0:
+                ready.append(child)
+                ready.sort()
+    order_keys.extend(sorted(set(topics) - set(order_keys)))
+    status_rank = {"completed": 0, "scheduled": 1, "waiting": 2, "blocked": 3, "unscheduled": 4}
+    entries: list[RoadmapTopic] = []
+    start_assigned = False
+    for index, key in enumerate(order_keys):
+        topic = topics[key]
+        foundation = f"shared/skill-{key}-foundation/v1"
+        task_ids = [foundation] if foundation in tasks else []
+        statuses = [plan_tasks[task_id].status for task_id in task_ids if task_id in plan_tasks]
+        task_status = min(statuses, key=lambda status: status_rank.get(status, 5)) if statuses else ""
+        rating = ratings.get(key, "")
+        start_here = False
+        if task_ids and not start_assigned and rating != "comfortable":
+            start_here, start_assigned = True, True
+        note = ""
+        if not task_ids:
+            note = "Prerequisite knowledge for a required topic; it is not part of the scheduled required work."
+        elif rating == "comfortable":
+            note = "You marked this comfortable; the scheduled practice stays available for review."
+        entries.append(RoadmapTopic(
+            key=key, title=topic.title or key, family=topic.family, order=index + 1,
+            rating=rating, start_here=start_here, prerequisites=list(topic.prerequisites),
+            resources=[dict(item) for item in topic.resources],
+            task_ids=task_ids, task_status=task_status,
+            required_by={key: list(names) for key, names in topic.required_by.items()},
+            scheduled=task_status in {"completed", "scheduled", "waiting"}, note=note,
+        ))
+    return entries
+
+
 def build_plan(
     context: GraphContext,
     profile: ProfileState,
@@ -316,18 +381,25 @@ def build_plan(
 ) -> Plan:
     """Build a proposal without mutating the graph, profile, or earlier plan.
 
-    Weekly hours are spread evenly across seven calendar days. The internal time
-    line preserves within-week precedence; returned week totals are its projection.
-    A mathematical infeasibility certificate uses an optimistic capacity bound,
-    never the conservative spreading assumption or a greedy allocation failure.
+    Weekly availability follows the profile's per-day pattern when supplied and
+    is otherwise spread evenly across seven calendar days; exam weeks and holiday
+    dates are protected. The internal time line preserves within-week precedence;
+    returned week totals are its projection. A mathematical infeasibility
+    certificate uses an optimistic capacity bound, never the conservative
+    spreading assumption or a greedy allocation failure.
     """
     warnings = [
         "Effort ranges are team-authored estimates. The schedule uses their upper bounds and does not predict selection.",
-        "Weekly availability is assumed to be spread evenly across seven calendar days; midweek deadline capacity is prorated.",
-        "Eligibility uses synthetic self-reported profile inputs; self-reported skills are not assessed competence.",
+        "Profile inputs and progress are self-reported; they are not independent eligibility or skill verification.",
     ]
-    if not profile.synthetic:
-        raise ValueError("Only a synthetic applicant profile is supported by this demo")
+    if profile.weekly_pattern:
+        warnings.append("Weekly availability follows your per-day pattern; exam weeks and holidays are protected.")
+    else:
+        warnings.append("Weekly availability is assumed to be spread evenly across seven calendar days; midweek deadline capacity is prorated.")
+    if context.topics:
+        warnings.append("The learning roadmap orders authored practice topics by prerequisites; it is study guidance, not a syllabus, requirement or skill assessment.")
+    if profile.synthetic:
+        warnings.append("Synthetic test profile; this plan does not describe a real applicant.")
     try:
         first_date = date.fromisoformat(profile.start_date)
     except ValueError as exc:
@@ -336,6 +408,9 @@ def build_plan(
     end = start + timedelta(weeks=profile.horizon_weeks)
     selected_ids = _unique(opportunity.id for opportunity in context.opportunities)
     opportunities = {opportunity.id: opportunity for opportunity in context.opportunities}
+    if any(f.name == "requirements_review" and f.status != "known"
+           for opportunity in opportunities.values() for f in opportunity.facts):
+        warnings.append("Source requirement review is incomplete; supported preparation tasks are retained, but remaining conditions need review.")
     if len(selected_ids) > 3:
         raise ValueError("Select at most three internship targets")
     if len(opportunities) != len(context.opportunities):
@@ -352,6 +427,18 @@ def build_plan(
         except ValueError:
             invalid_exam = True
             warnings.append(f"Exam blackout '{value}' is not an ISO Monday; availability cannot be certified.")
+    holiday_dates = set()
+    for value in profile.holidays:
+        try:
+            holiday_dates.add(date.fromisoformat(value))
+        except (ValueError, TypeError):
+            warnings.append(f"Holiday '{value}' is not an ISO calendar date; it was ignored for scheduling.")
+    pattern = {int(key): value for key, value in profile.weekly_pattern.items()
+               if key in {"0", "1", "2", "3", "4", "5", "6"}}
+    # The infeasibility certificate credits every touched week a full weekly
+    # pattern total, even when only part of the week precedes the cutoff and an
+    # exam day inside it is protected. The bound stays deliberately generous.
+    week_total = sum(pattern.values()) if pattern else profile.weekly_hours
     slots = []
     weekly_capacity: dict[str, float] = {}
     for index in range(profile.horizon_weeks * 7):
@@ -359,7 +446,8 @@ def build_plan(
         day_end = day_start + timedelta(days=1)
         key = (first_date + timedelta(weeks=index // 7)).isoformat()
         monday = day_start.date() - timedelta(days=day_start.weekday())
-        hours = 0.0 if invalid_exam or monday in exam_dates else profile.weekly_hours / 7
+        day_hours = pattern.get(day_start.weekday(), 0.0) if pattern else profile.weekly_hours / 7
+        hours = 0.0 if invalid_exam or monday in exam_dates or day_start.date() in holiday_dates else day_hours
         weekly_capacity[key] = weekly_capacity.get(key, 0.0) + hours
         slots.append({"start": day_start, "end": day_end, "week": key, "hours": hours, "used": 0.0, "cursor": day_start})
     available_hours = sum(weekly_capacity.values())
@@ -499,9 +587,9 @@ def build_plan(
         elif task.waiting_for and task.waiting_for not in observed_events:
             result.status, result.reason = "waiting", f"Await an observed external event: {task.waiting_for}. Requesting it is not receipt."
         elif task.waiting_for and task.waiting_for in observed_events:
-            result.status, result.reason = "completed", "External receipt is explicitly observed in the synthetic profile."
+            result.status, result.reason = "completed", "Receipt is recorded by the user; delivery has not been independently verified."
         elif completion_requested and (not old or compatible_old):
-            result.status, result.reason = "completed", "Compatible completed work is retained from the synthetic profile or earlier plan."
+            result.status, result.reason = "completed", "Compatible work marked complete by the user is retained from this profile or its earlier plan."
             retained.add(task_id)
         elif task.artifact_type == "submission" and all(modes[target_id] != "current" for target_id in target_links[task_id]):
             result.status, result.reason = "blocked", "Current portal opening must be confirmed before submission readiness can be released."
@@ -594,14 +682,14 @@ def build_plan(
     # allocator cannot use them before a midweek cutoff. Summed positive lower
     # estimates exceeding that bound are an actual impossibility certificate.
     def optimistic_capacity(cutoff: datetime) -> float:
-        budgets = defaultdict(float)
+        touched = set()
         wall_hours = 0.0
         for slot in slots:
             right = min(slot["end"], cutoff)
             if slot["start"] < right and slot["hours"] > EPSILON:
-                budgets[slot["week"]] += slot["hours"]
+                touched.add(slot["week"])
                 wall_hours += (right - slot["start"]).total_seconds() / 3600
-        full_budget = len(budgets) * profile.weekly_hours
+        full_budget = len(touched) * week_total
         return min(full_budget, wall_hours)
 
     proof_tasks = set()
@@ -731,6 +819,7 @@ def build_plan(
         evidence=[item.model_copy(deep=True) for item in context.evidence], fact_versions=fact_versions,
         total_hours_low=sum(task.hours_low for task in remaining), total_hours_high=sum(task.hours_high for task in remaining),
         available_hours=round(available_hours, 9), weekly_used={key: round(value, 9) for key, value in weekly_used.items()},
+        roadmap=_roadmap(context, profile, plan_tasks, tasks),
         next_action=next_action, warnings=_unique(warnings),
         affected_target_ids=_unique(impact.affected_target_ids) if impact else [],
         affected_task_ids=_unique(impact.affected_task_ids) if impact else [],

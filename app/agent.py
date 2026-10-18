@@ -129,7 +129,7 @@ def run_agent(message: str, handlers: dict[str, Callable[[], dict[str, Any]]],
         raise AgentError("Groq is not configured. The deterministic plan remains available.")
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": (
-            "You help a synthetic student prepare for explicitly selected internships. "
+            "You help a student prepare for explicitly selected internships. Profile and progress inputs are self-reported. "
             "Call inspect_requirements before making a preparation claim; then propose_plan "
             "when asked to create or update a plan. Tools calculate the plan and return "
             "authoritative evidence. You cannot submit applications or send messages. "

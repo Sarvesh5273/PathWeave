@@ -56,7 +56,9 @@ def context(opportunities, tasks):
 
 
 def profile(**updates):
-    return ProfileState(start_date="2026-10-19", horizon_weeks=8, exam_weeks=[], **updates)
+    defaults = dict(country="India", degree="BTech", field="computer_science", year=3,
+                    total_years=4, institution_type="non_iit", synthetic=True)
+    return ProfileState(start_date="2026-10-19", horizon_weeks=8, exam_weeks=[], **(defaults | updates))
 
 
 def tasks_by_id(plan):
@@ -440,7 +442,7 @@ def test_shortened_deadline_recomputes_partial_effort_and_preserves_unrelated_co
 
 
 def test_non_monday_start_respects_calendar_exam_without_false_capacity_proof():
-    state = ProfileState(start_date="2026-10-21", horizon_weeks=2, weekly_hours=7, exam_weeks=["2026-10-26"])
+    state = ProfileState(degree="BTech", start_date="2026-10-21", horizon_weeks=2, weekly_hours=7, exam_weeks=["2026-10-26"])
     graph = context([opportunity(deadline="2026-10-26T00:00:00+05:30")], [task("prep", low=6, high=6)])
     plan = build_plan(graph, state)
     assert plan.targets[0].schedule_status == "at_risk"
@@ -448,9 +450,13 @@ def test_non_monday_start_respects_calendar_exam_without_false_capacity_proof():
     assert sum(plan.weekly_used.values()) == pytest.approx(5)
 
 
-def test_non_synthetic_profile_rejected_by_demo_contract():
-    with pytest.raises(ValueError, match="synthetic"):
-        build_plan(context([opportunity()], [task("prep")]), profile(synthetic=False))
+def test_user_profile_is_supported_and_default_unknowns_are_not_filled():
+    state = ProfileState(start_date="2026-10-19", exam_weeks=[])
+    plan = build_plan(context([opportunity()], [task("prep")]), state)
+    assert state.degree is None and state.year is None and not state.synthetic
+    assert plan.targets[0].eligibility == "needs_review"
+    assert not any("Synthetic test profile" in warning for warning in plan.warnings)
+    assert any("self-reported" in warning for warning in plan.warnings)
 
 
 def test_next_action_does_not_skip_unfinished_ancestor_of_observed_receipt():
