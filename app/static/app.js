@@ -35,10 +35,11 @@ async function action(label, fn) {
     $("hunt-refresh").disabled = !state.hunt;
   }
 }
-function showStep(name) {
+function showStep(name, story) {
   const changed = state.currentStep !== name;
   state.currentStep = name;
   document.body.dataset.page = name;
+  setStoryStage(story || (name === "plan" ? (state.plan ? "roadmap" : "time") : name === "evidence" ? "evidence" : state.hunt ? "results" : "start"));
   for (const s of ["discover", "plan", "evidence"]) $(s + "-section").classList.toggle("hidden", s !== name);
   document.querySelectorAll(".step").forEach(b => {
     b.classList.toggle("active", b.dataset.step === name);
@@ -52,6 +53,33 @@ function showStep(name) {
     section.animate([{opacity:0,transform:"translateY(10px)"},{opacity:1,transform:"translateY(0)"}],
       {duration:240,easing:"cubic-bezier(.22,1,.36,1)"});
   }
+}
+function setStoryStage(stage) {
+  document.body.dataset.story = stage;
+  const copy = {
+    start:["YOUR NEXT CHAPTER","Find a direction worth exploring.","Start with what you know—or discover the work you might enjoy."],
+    explore:["STEP 1 · EXPLORE THE WORK","What would you enjoy doing?","Imagine the project. Choose the activities you’re curious to try."],
+    search:["STEP 2 · YOUR PREFERENCES","What opportunities should we look for?","Edit your roles, places and funding. Your interests are a starting point."],
+    results:["STEP 3 · CHOOSE YOUR TARGETS","Which opportunities do you want to pursue?","Review the source details. Choose up to three targets for one connected preparation path."],
+    time:["STEP 4 · MAKE ROOM","When can you prepare?","Set a realistic routine. Protect your exams and days off before building the plan."],
+    roadmap:["STEP 5 · YOUR LEARNING PATH","Your next step, with a reason.","Shared topics come first. Adjust your starting level and follow the resources at your pace."],
+    evidence:["THE REASONING BEHIND YOUR PLAN","See what your plan is based on.","Follow source excerpts and graph relationships. Unknown requirements stay visible."]
+  }[stage];
+  if (copy) { $("journey-kicker").textContent=copy[0]; $("journey-title").textContent=copy[1]; $("journey-description").textContent=copy[2]; }
+  const active=stage==="explore"?"start":stage==="evidence"?"roadmap":stage;
+  document.querySelectorAll("[data-story-nav]").forEach(button=>{
+    button.classList.toggle("active",button.dataset.storyNav===active);
+    if(button.dataset.storyNav===active)button.setAttribute("aria-current","step");else button.removeAttribute("aria-current");
+  });
+}
+function goStory(stage) {
+  if (["results","time"].includes(stage) && !state.hunt && !state.selected.length) return notify("Start a search or open a saved search first.");
+  if (stage==="time" && !(state.useHuntSelection ? state.listingSelected.length : state.selected.length)) return notify("Choose at least one target before setting your preparation time.");
+  if (stage==="roadmap" && !state.plan) return notify("Choose your targets and time, then build a roadmap.");
+  if(stage==="search"){showStep("discover","search");showSearch();}
+  else showStep(["time","roadmap"].includes(stage)?"plan":stage==="evidence"?"evidence":"discover",stage);
+  if(stage==="time")$("prep-settings").open=true;
+  $("journey-title").scrollIntoView({block:"start"});
 }
 function browserToken() {
   let token = localStorage.getItem("scout-client");
@@ -349,7 +377,7 @@ $("plan-btn").onclick = () => action("Traversing target requirements and shared 
 $("setup-plan-btn").onclick = () => {
   if (busy) return;
   $("prep-settings").open = true;
-  showStep("plan");
+  showStep("plan", "time");
   notify("Set one weekly time budget for your selected targets. Exam weeks stay protected.");
   $("plan-section").scrollIntoView({ block: "start" });
   $("weekly-hours").focus({ preventScroll: true });

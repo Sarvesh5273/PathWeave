@@ -11,6 +11,7 @@ function storeExploration() {
   localStorage.setItem(explorationKey, JSON.stringify({version: explorationData.version, answers: explorationAnswers}));
 }
 async function startExploration() {
+  showStep("discover", "explore");
   if (!explorationData) {
     const response = await fetch('/api/interest-scenarios');
     if (!response.ok) throw new Error('Interest scenarios could not load. You can enter your interests directly.');

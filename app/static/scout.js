@@ -26,6 +26,7 @@ async function refreshHunts() {
 }
 
 function loadHunt(hunt) {
+  $("shortlist-section").dataset.empty = "false";
   state.hunt = hunt; state.listings = hunt.result?.listings || [];
   let savedSelection=[];
   try { savedSelection=JSON.parse(localStorage.getItem("scout-selection:"+hunt.id)||"[]"); } catch {}
@@ -35,7 +36,8 @@ function loadHunt(hunt) {
   localStorage.setItem("scout-last-hunt", hunt.id);
   $("hunt-refresh").disabled = false;
   $("source-caption").textContent = "Matches require source evidence for your selected location and funding. Unconfirmed candidates have a separate view; source read dates are shown.";
-  showSearch(false);
+  showStep("discover", "results");
+  $("search-form").classList.remove("hidden");
   const p = hunt.preferences;
   if (Array.isArray(p?.roles)) {
     for (const [id, key] of [["search-query", "roles"], ["search-locations", "locations"], ["search-companies", "companies"], ["search-keywords", "keywords"], ["search-exclude", "exclude_keywords"]]) {
@@ -174,6 +176,7 @@ async function watchRun(run) {
 }
 
 function paintRun(run) {
+  setStoryStage("results");
   $("run-progress").classList.remove("hidden");
   $("discovery-trace").classList.remove("hidden");
   const events = run.events || [];
@@ -221,6 +224,7 @@ function closeExplorer() {
 }
 function showSearch(focus = true) {
   closeExplorer();
+  showStep("discover", "search");
   $("search-form").classList.remove("hidden");
   if (focus) {
     $("search-form").scrollIntoView({ block: "center" });
@@ -228,6 +232,15 @@ function showSearch(focus = true) {
   }
 }
 $("known-interests-btn").onclick=()=>showSearch();
+if ($("empty-search-btn")) $("empty-search-btn").onclick=()=>showSearch();
+$("search-back-btn").onclick=()=>goStory("start");
+$("edit-search-btn").onclick=()=>showSearch();
+$("resume-hunt-btn").onclick=()=>{showStep("discover","results");$("saved-searches").open=true;};
+$("resume-plan-btn").onclick=()=>goStory("roadmap");
+$("view-evidence-btn").onclick=()=>goStory("evidence");
+$("edit-time-btn").onclick=()=>goStory("time");
+$("evidence-back-btn").onclick=()=>goStory("roadmap");
+document.querySelectorAll("[data-story-nav]").forEach(button=>button.onclick=()=>goStory(button.dataset.storyNav));
 async function restoreScout() {
   const hunts=await refreshHunts();
   if(state.hunt || busy)return;

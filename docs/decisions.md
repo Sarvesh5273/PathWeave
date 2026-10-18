@@ -1,5 +1,18 @@
 # Decision log
 
+## D032 — Screenshot-led five-step UX redesign
+
+October18,2026,IST: Sarvesh rejected the overall UX while retaining the cream/orange
+theme, explicitly requested no browser runs, and suggested storytelling one step at
+a time. Root replaced the landing/dashboard hierarchy with Direction → Search →
+Targets → Your time → Roadmap. Stage-specific headings, saved-search/roadmap entries,
+back/edit controls and separate source-evidence view retain the existing backend.
+Larger readable typography, custom select styling, compact results controls and
+collapsed secondary settings reduce competing actions. No shadcn/React migration.
+JavaScript syntax, HTML nesting, unique IDs and fixed control references checked;
+no browser visual/interaction verification or provider calls claimed. User visual
+feedback is next; public delivery remains pending.
+
 ## D031 — Focused UI motion pass
 
 October18,2026,IST: Sarvesh requested shadcn-like animations. Root added lightweight

@@ -1,5 +1,11 @@
 # Task tracker
 
+Latest UX revision: user requested screenshot-based redesign, cream/orange retained,
+no browser runs. Five-step Direction/Search/Targets/Time/Roadmap flow implemented;
+back/edit/saved entries and evidence view retained. JS syntax/HTML/control-reference
+checks passed; browser/visual interaction validation not performed by request.
+Next user hard-refreshes and reviews; preserve delivery focus and no provider reruns.
+
 Latest UI pass: short entrance/navigation/hover/press/progress animations implemented
 with CSS and browser APIs, reduced-motion respected. Local navigation/style check
 passed without JS errors; no provider calls. No shadcn/React dependency migration.

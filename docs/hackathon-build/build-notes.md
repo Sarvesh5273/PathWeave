@@ -1,5 +1,12 @@
 # Build notes and contribution journal
 
+## October18 — five-step UX redesign
+
+Sarvesh supplied screenshots, rejected the overall hierarchy and suggested one-step
+storytelling while retaining the theme. Root authored stage navigation and responsive
+layout with existing backend contracts. Syntax/HTML/ID checks passed; no browser run
+or user visual acceptance inferred. No new provider calls. See D032.
+
 ## October 18 — roadmap and timetable implemented
 
 Sarvesh asked whether the agreed plan could be implemented with about four hours
