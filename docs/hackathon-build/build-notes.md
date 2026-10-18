@@ -1,5 +1,15 @@
 # Build notes and contribution journal
 
+## October 18 — submission recording guide
+
+Replit Agent replaced the obsolete simulation walkthrough with a current
+six-section shot list and truthful narration draft. The user specified silent
+raw recording; the agent will cut the supplied footage and add voiceover.
+No footage has been supplied yet, so editing/export remain pending. The guide
+does not establish that the user tested the new plan, explain its architecture,
+or that the laptop's latest save/resume path was independently verified.
+No app code, credentials, graph data, providers or publication settings changed.
+
 ## October 18 — topic-first roadmap correction
 
 The user supplied actual laptop plan text and screenshots, identified the missing

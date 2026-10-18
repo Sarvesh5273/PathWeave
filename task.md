@@ -1,5 +1,16 @@
 # Task tracker
 
+## Current demo preparation — October 18, 2026, IST
+
+Replaced the historical example/simulation walkthrough with a current laptop
+recording guide in `docs/demo-walkthrough.md`: saved real target, explicit study
+track, daily hours/exam/day-off inputs, topic practice/resources, completion/undo,
+and separate source evidence. The user will record silently and upload raw
+MOV/MP4; Replit Agent is to trim the actual footage and add synchronized voiceover.
+One continuous recording is sufficient. Guide prepared; video editing and export
+are waiting for footage. No recording, live laptop verification, provider hunt,
+publication or submission has been performed in this task.
+
 October 18 topic-first roadmap: implemented after explicit user approval.
 Authored study tracks supplement sparse source details without claiming an
 employer syllabus. Topics include concepts, practice, resources, completion/undo,
