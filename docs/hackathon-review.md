@@ -4,6 +4,13 @@ Reviewed: October 15, 2026, approximately 19:54 IST.
 Confidence: [Certain] means directly observed source evidence; [Likely] means a recommendation
 or interpretation; [Guessing] means a gap. “Certain” does not certify future page changes.
 
+October 16 follow-up: official rules and resource links were fetched again during a
+user-requested Scout/product reassessment. The requirements below remain consistent
+with that extraction. Docker/self-hosted use is explicitly accepted; managed Cloud
+is not compulsory. A pre-event Scout finder must not be presented as new event work
+without distinguishing provenance and checking any ambiguous reuse. No new rubric
+or signed-in submission state was established. See research/scout-reassessment-evidence.md.
+
 ## 1. Who runs it and what is mandatory
 
 [Certain] Event: **Graph Hacks: Context for AI Agents**. WeMakeDevs organizes it in
@@ -180,4 +187,3 @@ Their account/state/tool flow assumes Devpost. This event's FAQ instead specifie
 WeMakeDevs. We use the relevant planning principles and documents, and verify this
 event against its own official site. Devpost registration/submission gates and
 placeholder event data were not applied. No rules-agreement state was invented.
-

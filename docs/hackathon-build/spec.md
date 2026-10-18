@@ -1,5 +1,37 @@
 # Technical Spec
 
+## v0.5.0 exploration and discovery amendment
+
+`app/interest/scenarios.json` supplies12authored illustrative scenarios and direction
+metadata; `interests.js` handles preference ratings, explained suggestions/edit/retest.
+Responses are browser-local; no model/aptitude assessment claim.
+`discovery/filters.py` validates cumulative location/funding source excerpts and marks
+match/needs_review/excluded. Hunt view APIs hydrate stored-source evidence before
+filtering; UI uses those APIs so hunt requirements are never silently relaxed.
+Three-component funding requires stipend/living support, housing AND round-trip travel.
+Default search/fetch ceilings12/45,10URLbatches,25searches/minute,900Fetch/day; provider
+cache tolerance3600seconds. No change to existing paid-Agent authorization/scheduler.
+## October 17 normal-use amendment
+
+Profile defaults are unknown rather than a fictional Indian undergraduate. UI provides
+degree, field, current/total study year, country, institution type, weekly hours, start,
+exam week and horizon. Completion/receipt are explicit user reports, not verified delivery.
+`X-Scout-Client` now scopes plan create/readback/accept/agent as well as hunts. The server
+derives a profile ID from that bearer token, overriding supplied IDs; cross-browser
+plan read/accept is rejected. Old demonstration plan data is preserved but not restored
+into a normal user's workspace. Browser token handling is not account authentication.
+`ENABLE_DEMO_TOOLS=false` disables examples/simulation APIs by default. Main UI omits
+those controls. Sources/graph history retain provenance; test fixtures remain synthetic.
+Selected posting extraction has a compact fact-only response and retains individually
+source-validated facts even when coverage is incomplete. An unknown hard requirement
+`requirements_review` blocks certification whenever source coverage or validation is partial.
+Local single-host storage, deployment controls and event data-policy flags remain.
+
+Current discovery revision: see scout-parity.md and the October 16 amendment below.
+The original source/API spec here describes the earlier bounded baseline, not full
+Scout parity. Core discovery→preparation integration is now locally verified; see
+scout-parity.md and ../verification.md for source/quota/Agent/delivery limits.
+
 Status: implementation authorized. Shared contracts are in app/models.py.
 Python 3.12, FastAPI, official FalkorDB client, static same-origin HTML/JS,
 Groq local tool calling and TinyFish Search/Fetch.
@@ -133,3 +165,11 @@ actual isolated test graph and bounded fixtures. Root proof script makes real Ti
 and Groq calls without printing keys and verifies plan persistence and selective impact.
 Full UI proof begins after the API slice. Record untested features accurately.
 
+## Current implementation amendment
+
+October 16: Sarvesh accepted Scout-inspired discovery followed by preparation and
+requested preserving the actual Scout engine, including TinyFish Agent and its other
+stages. `scout-parity.md` owns that revised discovery scope and progress; the original
+bounded implementation below remains historical/working baseline, not full parity.
+The new discovery package is integrated and locally tested; full parity/live Agent
+and delivery remain flagged in the owning ledger.

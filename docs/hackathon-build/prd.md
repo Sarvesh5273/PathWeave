@@ -1,7 +1,25 @@
 # Product Requirements
 
+Current implementation: flow-implementation.md records the completed v0.5.0 first
+slice:12project questions, explained/editable/retestable interests, visible settings
+and strict source-supported location/funding. Timetable/readiness/curriculum remains
+pending. The older discussion-only note below is superseded for this slice by D026.
+October 17 latest design: interest-and-funding.md locks project-scenario exploration
+and strict stipend + accommodation + round-trip travel filtering. These supersede
+the five-checkbox interest UI and permissive funding-ranking behavior as requirements,
+not implemented capabilities. Further implementation awaits the roadmap/timetable
+discussion; no topic-test policy is locked yet.
+
 Status: implementation authorized October 15, 2026.
 Primary track: Agents That Act on Connected Data.
+
+October 17 amendment supersedes the synthetic-only normal-use requirement below:
+Sarvesh requested the actual working flow. Editable user background and progress,
+browser-scoped plans, source-first discovery and supported selected-source facts are
+now the normal path. Cached examples and policy simulation are developer-only opt-ins.
+Unknowns, self-report labels and evidence limits remain; no document upload/application
+submission was added. Hackathon recording must still use synthetic inputs pending
+clarification of the event's personal-data rule.
 
 ## Product Summary
 
