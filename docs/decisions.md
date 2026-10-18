@@ -1,5 +1,14 @@
 # Decision log
 
+## D033 — Remove starburst branding and constrain desktop widths
+
+October18,2026,IST: Sarvesh's screenshot showed the five-step entry still stretched
+across desktop. Root removed starburst marks from logo, explorer and footer and
+replaced the exploration icon with a question mark. Direction/search/time screens
+use an880pxmaximum; results/roadmap allow1120px. Entry cards have balanced height,
+mobile stacks them, and saved shortcuts sit below the heading. Syntax/control-ID
+checks passed; no browser or visual verification performed per user instruction.
+
 ## D032 — Screenshot-led five-step UX redesign
 
 October18,2026,IST: Sarvesh rejected the overall UX while retaining the cream/orange

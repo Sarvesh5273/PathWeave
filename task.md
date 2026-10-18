@@ -1,5 +1,9 @@
 # Task tracker
 
+Latest screenshot correction: starburst branding removed; compact880pxdecision
+screens and1120pxworking views, stacked mobile cards and balanced spacing authored.
+No browser run. User visual review remains the next check; D033.
+
 Latest UX revision: user requested screenshot-based redesign, cream/orange retained,
 no browser runs. Five-step Direction/Search/Targets/Time/Roadmap flow implemented;
 back/edit/saved entries and evidence view retained. JS syntax/HTML/control-reference
