@@ -1,5 +1,9 @@
 # Decision log
 
+October18navbar follow-up: user screenshot showed header/footer wider than decision
+content. Header/footer now follow the same880pxdecision-screen width; working screens
+retain1120px. CSS-only alignment correction; no browser run.
+
 ## D033 — Remove starburst branding and constrain desktop widths
 
 October18,2026,IST: Sarvesh's screenshot showed the five-step entry still stretched

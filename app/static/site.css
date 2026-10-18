@@ -748,6 +748,10 @@ body[data-story="time"] #edit-time-btn { display: none; }
 main { width: calc(100% - 64px); max-width: 1120px; padding-left: 0; padding-right: 0; min-width: 0; }
 body[data-story="start"] main, body[data-story="explore"] main,
 body[data-story="search"] main, body[data-story="time"] main { max-width: 880px; }
+body[data-story="start"] .topbar, body[data-story="start"] footer,
+body[data-story="explore"] .topbar, body[data-story="explore"] footer,
+body[data-story="search"] .topbar, body[data-story="search"] footer,
+body[data-story="time"] .topbar, body[data-story="time"] footer { max-width: 880px; }
 .brandmark { letter-spacing: -1.5px; padding-right: 0; }
 .journey-heading { display: block; position: relative; padding-top: 36px; }
 .journey-heading > div:first-child { min-width: 0; }
