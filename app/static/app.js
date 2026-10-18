@@ -1,4 +1,4 @@
-const state = { opportunities: [], selected: [], category: "All", plan: null, mode: "official", impact: null, trace: [] };
+const state = { opportunities: [], selected: [], category: "All", plan: null, mode: "official", impact: null, trace: [], hunt: null, listings: [], listingSelected: [], useHuntSelection: false, currentStep: "discover", taskCategory: "All", examWeeks: [], holidays: [], ratings: {} };
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const safeUrl = value => { try { const url = new URL(value); return ["http:", "https:"].includes(url.protocol) ? url.href : "#"; } catch { return "#"; } };
@@ -10,9 +10,15 @@ let busy = false;
 
 function notify(message, error = false) { $("notification").textContent = message; $("notification").className = "notification" + (error ? " error" : ""); }
 async function api(path, data) {
-  const response = await fetch(path, data === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+  let token = localStorage.getItem("scout-client");
+  if (!token) { token = crypto.randomUUID().replaceAll("-", ""); localStorage.setItem("scout-client", token); }
+  const headers = { "X-Scout-Client": token };
+  const response = await fetch(path, data === undefined ? {headers} : { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(data) });
   let body; try { body = await response.json(); } catch { throw new Error("The server returned an unreadable response."); }
-  if (!response.ok) throw new Error(typeof body.detail === "string" ? body.detail : "Request could not complete.");
+  if (!response.ok) {
+    const message = typeof body.detail === "string" ? body.detail : Array.isArray(body.detail) ? body.detail.map(item => item.msg).join("; ") : "Request could not complete.";
+    throw new Error(message);
+  }
   return body;
 }
 async function action(label, fn) {
@@ -26,21 +32,58 @@ async function action(label, fn) {
       if (b.dataset.wasDisabled !== undefined) { b.disabled = b.dataset.wasDisabled === "1"; delete b.dataset.wasDisabled; }
     });
     updateSelected(); if (state.plan) $("accept-btn").disabled = state.plan.status !== "proposed";
+    $("hunt-refresh").disabled = !state.hunt;
   }
 }
 function showStep(name) {
+  state.currentStep = name;
+  document.body.dataset.page = name;
   for (const s of ["discover", "plan", "evidence"]) $(s + "-section").classList.toggle("hidden", s !== name);
-  document.querySelectorAll(".step").forEach(b => b.classList.toggle("active", b.dataset.step === name));
+  document.querySelectorAll(".step").forEach(b => {
+    b.classList.toggle("active", b.dataset.step === name);
+    if (b.dataset.step === name) b.setAttribute("aria-current", "step");
+    else b.removeAttribute("aria-current");
+  });
   if (name === "evidence") renderEvidence();
+}
+function browserToken() {
+  let token = localStorage.getItem("scout-client");
+  if (!token) { token = crypto.randomUUID().replaceAll("-", ""); localStorage.setItem("scout-client", token); }
+  return token;
 }
 function profile() {
   const existing = state.plan?.profile || {};
-  return { ...existing, id: "demo-student", synthetic: true, country: "India", degree: "BTech",
-           field: "computer_science", year: 3, total_years: 4, institution_type: "non_iit",
-           weekly_hours: Number($("weekly-hours").value), start_date: $("start-date").value || "2026-10-19",
-           horizon_weeks: 8, exam_weeks: $("exam-week").value ? [$("exam-week").value] : [],
-           completed_task_ids: existing.completed_task_ids || [], received_events: existing.received_events || [] };
+  const text = id => $(id).value.trim() || null;
+  const number = id => $(id).value === "" ? null : Number($(id).value);
+  const pattern = {};
+  for (let index=0; index<7; index++) if ($("hours-" + index).value !== "") pattern[String(index)] = Number($("hours-" + index).value);
+  const value = {id: "unassigned", synthetic: false, country: text("profile-country"), degree: text("profile-degree"),
+    field: text("profile-field"), year: number("profile-year"), total_years: number("profile-total-years"),
+    institution_type: text("profile-institution"), weekly_hours: Number($("weekly-hours").value),
+    start_date: $("start-date").value, horizon_weeks: Number($("horizon-weeks").value),
+    exam_weeks: [...state.examWeeks], holidays: [...state.holidays], weekly_pattern: pattern,
+    skill_ratings: {...state.ratings},
+    completed_task_ids: existing.completed_task_ids || [], received_events: existing.received_events || [],
+    skills: existing.skills || {}};
+  localStorage.setItem("preparation-profile:" + browserToken(), JSON.stringify(value));
+  return value;
 }
+function fillProfile(value = {}) {
+  for (const [id, field] of [["profile-country","country"],["profile-degree","degree"],["profile-field","field"],
+    ["profile-year","year"],["profile-total-years","total_years"],["profile-institution","institution_type"],
+    ["weekly-hours","weekly_hours"],["start-date","start_date"],["horizon-weeks","horizon_weeks"]]) {
+    if (value[field] !== undefined && value[field] !== null) $(id).value = value[field];
+  }
+  state.examWeeks = [...new Set(value.exam_weeks || [])].sort();
+  state.holidays = [...new Set(value.holidays || [])].sort();
+  state.ratings = {...(value.skill_ratings || {})};
+  for (let index=0; index<7; index++) $("hours-" + index).value = value.weekly_pattern?.[String(index)] ?? "";
+  renderCalendarChips();
+  if (!$("start-date").value) $("start-date").value = new Intl.DateTimeFormat("en-CA", {timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+}
+let storedProfile;
+try { storedProfile = JSON.parse(localStorage.getItem("preparation-profile:" + browserToken()) || "{}"); } catch { storedProfile = {}; }
+fillProfile(storedProfile);
 function normalizeMonday(input) {
   if (!input.value) return;
   const date = new Date(input.value + "T12:00:00Z");
@@ -48,15 +91,37 @@ function normalizeMonday(input) {
   date.setUTCDate(date.getUTCDate() - shift);
   input.value = date.toISOString().slice(0,10);
 }
-$("start-date").addEventListener("change", () => normalizeMonday($("start-date")));
-$("exam-week").addEventListener("change", () => normalizeMonday($("exam-week")));
+function renderCalendarChips() {
+  const render = (id, values, kind) => {
+    $(id).innerHTML = values.length ? values.map(value => '<span class="date-chip">' + esc(dateLabel(value)) + '<button type="button" data-remove-date="' + esc(value) + '" aria-label="Remove ' + esc(dateLabel(value)) + '">×</button></span>').join("") : '<small>None added</small>';
+    $(id).querySelectorAll("[data-remove-date]").forEach(button => button.onclick = () => {
+      if (kind === "exam") state.examWeeks = state.examWeeks.filter(value => value !== button.dataset.removeDate);
+      else state.holidays = state.holidays.filter(value => value !== button.dataset.removeDate);
+      renderCalendarChips(); profile();
+    });
+  };
+  render("exam-weeks-list", state.examWeeks, "exam");
+  render("holidays-list", state.holidays, "holiday");
+}
+$("exam-week-add").onclick = () => {
+  if (!$("exam-week").value) return notify("Choose an exam-week date first.", true);
+  normalizeMonday($("exam-week"));
+  state.examWeeks = [...new Set([...state.examWeeks, $("exam-week").value])].sort();
+  $("exam-week").value = ""; renderCalendarChips(); profile();
+};
+$("holiday-add").onclick = () => {
+  if (!$("holiday-date").value) return notify("Choose a day off first.", true);
+  state.holidays = [...new Set([...state.holidays, $("holiday-date").value])].sort();
+  $("holiday-date").value = ""; renderCalendarChips(); profile();
+};
 
 function renderCards() {
   renderSourceControls();
-  const list = state.opportunities.filter(o => state.category === "All" || o.category === state.category);
+  if (state.useHuntSelection && typeof renderScoutCards === "function") { renderScoutCards(); return; }
+  const list = state.opportunities.filter(o => state.selected.includes(o.id) && (state.category === "All" || o.category === state.category));
   $("result-count").textContent = list.length + " opportunit" + (list.length === 1 ? "y" : "ies");
   if (!list.length) {
-    $("opportunity-cards").innerHTML = '<div class="empty-state"><span class="empty-icon">↗</span><h3>No verified results yet.</h3><p>Try a more specific search or load sourced examples.<br>Missing requirements stay unknown.</p></div>';
+    $("opportunity-cards").innerHTML = '<div class="empty-state"><span class="empty-icon">↗</span><h3>Start your search.</h3><p>Find live opportunities using your interests and location preferences.<br>Missing requirements stay unknown.</p></div>';
     return;
   }
   $("opportunity-cards").innerHTML = list.map(o => {
@@ -78,26 +143,75 @@ function toggleTarget(id) {
   renderCards(); updateSelected();
 }
 function updateSelected() {
-  $("selection-count").textContent = state.selected.length + " / 3";
-  $("selected-list").innerHTML = state.selected.length ? state.selected.map(id => {
+  const ids = state.useHuntSelection ? state.listingSelected : state.selected;
+  $("selection-count").textContent = ids.length + " / 3";
+  $("selected-list").innerHTML = ids.length ? ids.map(id => {
     const op = state.opportunities.find(o => o.id === id);
-    return '<div class="selected-item"><i class="selected-dot"></i><span>' + esc(op?.program || id) + '</span><button data-remove="' + esc(id) + '" aria-label="Remove target">×</button></div>';
-  }).join("") : '<p class="muted">Choose up to three opportunities.<br>Selection does not mean eligibility.</p>';
-  $("selected-list").querySelectorAll("[data-remove]").forEach(b => b.onclick = () => toggleTarget(b.dataset.remove));
-  $("plan-btn").disabled = busy || !state.selected.length;
-  $("agent-btn").disabled = busy || !state.selected.length;
+    const listing = state.listings.find(v => v.id === id);
+    return '<div class="selected-item"><i class="selected-dot"></i><span>' + esc(listing?.title || op?.program || id) + '</span><button data-remove="' + esc(id) + '" aria-label="Remove target">×</button></div>';
+  }).join("") : '<p class="muted">Add up to three opportunities you want to work toward.</p>';
+  $("selected-list").querySelectorAll("[data-remove]").forEach(b => b.onclick = () => state.useHuntSelection ? toggleListing(b.dataset.remove) : toggleTarget(b.dataset.remove));
+  $("plan-btn").disabled = busy || !ids.length;
+  $("setup-plan-btn").disabled = busy || !ids.length;
+  $("agent-btn").disabled = busy || !ids.length || !state.plan;
+  $("prep-selection-note").textContent = ids.length ? ids.length + " selected target" + (ids.length === 1 ? "" : "s") + " · one weekly budget" : "Select targets before building a plan";
+  $("prep-settings").classList.toggle("hidden", !ids.length && !state.plan);
+  if (!state.plan) {
+    $("plan-empty").querySelector("h3").textContent = ids.length ? "Your targets are set. Now make a little room." : "Select your targets first.";
+    $("plan-empty").querySelector("p").textContent = ids.length ? "Choose your weekly time above, then build a preparation proposal." : "Your preparation plan will appear here.";
+  }
 }
 
 function renderSourceControls() {
-  const unique = [...new Map(state.opportunities.map(o => [o.source_url, o])).values()];
+  const unique = [...new Map(state.opportunities.filter(o => state.selected.includes(o.id)).map(o => [o.source_url, o])).values()];
   $("source-controls").classList.toggle("hidden", !unique.length);
   $("refresh-source").innerHTML = unique.map(o => '<option value="' + esc(o.source_url) + '">' + esc(o.program) + '</option>').join("");
+}
+
+function weekCapacity(profileValue, week) {
+  const pattern = profileValue.weekly_pattern || {};
+  if (!Object.keys(pattern).length) {
+    const start = new Date(week + "T12:00:00Z");
+    let availableDays = 0;
+    for (let offset=0; offset<7; offset++) {
+      const day = new Date(start); day.setUTCDate(day.getUTCDate() + offset);
+      const iso = day.toISOString().slice(0,10);
+      const monday = new Date(day); monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay()+6)%7));
+      if (!(profileValue.exam_weeks || []).includes(monday.toISOString().slice(0,10)) && !(profileValue.holidays || []).includes(iso)) availableDays++;
+    }
+    return Number(profileValue.weekly_hours || 0) * availableDays / 7;
+  }
+  const start = new Date(week + "T12:00:00Z");
+  let total = 0;
+  for (let offset=0; offset<7; offset++) {
+    const day = new Date(start); day.setUTCDate(day.getUTCDate() + offset);
+    const iso = day.toISOString().slice(0,10);
+    const monday = new Date(day); monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay()+6)%7));
+    if (!(profileValue.exam_weeks || []).includes(monday.toISOString().slice(0,10)) && !(profileValue.holidays || []).includes(iso)) total += Number(pattern[String((day.getUTCDay()+6)%7)] || 0);
+  }
+  return total;
+}
+
+function renderRoadmap(plan) {
+  const roadmap = plan.roadmap || [];
+  $("roadmap-note").textContent = roadmap.length ? "Prerequisites come first. Your levels are self-reported and only change the suggested start point—not the sourced requirements." : "No reviewed learning topics were found in the selected sources yet. Unextracted or unsupported topics stay unknown.";
+  if (!roadmap.length) { $("roadmap-list").innerHTML = '<div class="empty-state roadmap-empty"><p>The preparation tasks remain available. A topic roadmap appears when reviewed skills are extracted from a selected source.</p></div>'; return; }
+  const ratingOptions = [["","Not rated"],["comfortable","Comfortable"],["review","Needs review"],["new","New to me"],["unsure","Not sure"]];
+  $("roadmap-list").innerHTML = roadmap.map(entry => {
+    const required = Object.entries(entry.required_by || {}).map(([target,names]) => (state.opportunities.find(item => item.id === target)?.program || target) + " · " + names.map(name => name.replaceAll("_"," ")).join(", "));
+    return '<article class="roadmap-item ' + (entry.start_here ? "start" : "") + (entry.task_status === "completed" ? " done" : "") + '"><div class="roadmap-order">' + String(entry.order).padStart(2,"0") + '</div><div class="roadmap-main"><div class="roadmap-title"><h4>' + esc(entry.title) + '</h4><span class="badge">' + esc(entry.family || "Foundation") + '</span>' + (entry.start_here ? '<span class="badge start-badge">START HERE</span>' : '') + (entry.task_status ? '<span class="badge">' + esc(entry.task_status.toUpperCase()) + '</span>' : '') + '</div>' + (entry.prerequisites?.length ? '<p class="roadmap-prereqs">Builds after: ' + entry.prerequisites.map(value => esc((roadmap.find(item => item.key === value)?.title) || value.replaceAll("_"," "))).join(", ") + '</p>' : '') + '<div class="roadmap-actions"><label>Your level<select data-rating="' + esc(entry.key) + '">' + ratingOptions.map(([value,label]) => '<option value="' + value + '" ' + (entry.rating === value ? "selected" : "") + '>' + label + '</option>').join("") + '</select></label><div class="roadmap-resources">' + (entry.resources || []).map(resource => '<a class="source-link" href="' + esc(safeUrl(resource.url)) + '" target="_blank" rel="noopener noreferrer">' + esc(resource.title) + ' ↗</a>').join("") + '</div></div>' + (required.length ? '<p class="roadmap-required">Connected source facts: ' + esc(required.join("; ")) + '</p>' : '<p class="roadmap-required">Prerequisite guidance for a connected required topic.</p>') + (entry.note ? '<p class="roadmap-item-note">' + esc(entry.note) + '</p>' : '') + '</div></article>';
+  }).join("");
+  $("roadmap-list").querySelectorAll("[data-rating]").forEach(select => select.onchange = () => action("Saving your self-reported topic level…", async () => {
+    if (select.value) state.ratings[select.dataset.rating] = select.value; else delete state.ratings[select.dataset.rating];
+    setPlan(await api("/api/plan", {selected_ids: state.selected, profile: profile()}));
+    notify("Topic level saved as self-reported. It changes the suggested start point, not the source requirements.");
+  }));
 }
 
 $("refresh-btn").onclick = () => action("Refreshing the selected source and checking fact-level changes…", async () => {
   const result = await api("/api/refresh", {url: $("refresh-source").value});
   const all = await api("/api/opportunities"); state.opportunities = all.opportunities || [];
-  renderCards();
+  state.useHuntSelection = false; renderCards();
   if (state.plan && state.mode === "official") {
     const latest = await api("/api/plan/latest");
     if (latest.plan) setPlan(latest.plan);
@@ -109,10 +223,12 @@ $("refresh-btn").onclick = () => action("Refreshing the selected source and chec
 
 function setPlan(plan, mode = "official") {
   state.plan = plan; state.mode = mode;
+  state.ratings = {...(plan.profile?.skill_ratings || {})};
   state.selected = plan.selected_ids || state.selected;
   $("plan-empty").classList.add("hidden"); $("plan-content").classList.remove("hidden");
   $("next-action-text").textContent = plan.next_action || "Review your target requirements and resolve the unknowns.";
-  $("plan-mode-note").textContent = mode === "simulation" ? "SIMULATION · Separate graph. Changed policy is illustrative; official source facts remain unchanged." : "Synthetic student · Real source facts · Preparation and eligibility are separate checks.";
+  $("plan-mode-note").textContent = mode === "simulation" ? "SIMULATION · Separate graph. Changed policy is illustrative; official source facts remain unchanged." : "Your profile and progress are self-reported · Requirements link to source evidence.";
+  if (state.enrichmentWarnings?.length || plan.warnings?.some(w => /source.*review is incomplete/i.test(w))) $("plan-mode-note").textContent += " · Some source details need review.";
   $("metric-effort").textContent = hours(plan.total_hours_low) + "–" + hours(plan.total_hours_high) + " h";
   $("metric-capacity").textContent = hours(plan.available_hours) + " h";
   const shared = plan.tasks.filter(t => t.category === "Shared" && t.status !== "completed");
@@ -120,19 +236,19 @@ function setPlan(plan, mode = "official") {
   $("metric-state").textContent = plan.status.charAt(0).toUpperCase() + plan.status.slice(1);
   $("metric-version").textContent = "Version " + plan.id.slice(0,8);
   $("accept-btn").disabled = plan.status !== "proposed";
-  $("plan-warnings").innerHTML = (plan.warnings || []).map(w => '<div class="warning">' + esc(w) + '</div>').join("");
+  $("plan-warnings").innerHTML = [...(state.enrichmentWarnings || []),...(plan.warnings || [])].map(w => '<div class="warning">' + esc(w) + '</div>').join("");
   const weeks = Object.keys(plan.weekly_used || {});
   if (!weeks.length) {
     const start = new Date(plan.profile.start_date + "T12:00:00Z");
     for (let i=0;i<plan.profile.horizon_weeks;i++) { const date = new Date(start); date.setUTCDate(date.getUTCDate()+i*7); weeks.push(date.toISOString().slice(0,10)); }
   }
   $("timeline").innerHTML = weeks.map(week => {
-    const exam = (plan.profile.exam_weeks || []).includes(week);
-    const used = Number(plan.weekly_used?.[week] || 0), cap = exam ? 0 : plan.profile.weekly_hours;
-    return '<div class="week-row ' + (exam ? "exam" : "") + '"><div class="week-title">' + esc(dateLabel(week)) + '<small>' + (exam ? "EXAMS · PROTECTED" : "PREPARATION WEEK") + '</small></div><div class="week-bar"><span style="width:' + (cap ? Math.min(100,used/cap*100) : 0) + '%"></span></div><div class="week-hours">' + hours(used) + " / " + hours(cap) + 'h</div></div>';
+    const cap = weekCapacity(plan.profile, week), used = Number(plan.weekly_used?.[week] || 0), protectedWeek = cap === 0;
+    return '<div class="week-row ' + (protectedWeek ? "exam" : "") + '"><div class="week-title">' + esc(dateLabel(week)) + '<small>' + (protectedWeek ? "PROTECTED / UNAVAILABLE" : "PREPARATION WEEK") + '</small></div><div class="week-bar"><span style="width:' + (cap ? Math.min(100,used/cap*100) : 0) + '%"></span></div><div class="week-hours">' + hours(used) + " / " + hours(cap) + 'h</div></div>';
   }).join("");
-  $("task-list").innerHTML = plan.tasks.map(t => '<article class="task"><button class="task-check ' + (t.status === "completed" ? "done" : "") + '" data-complete="' + esc(t.task_id) + '" ' + (t.waiting_for || t.status === "waiting" || t.status === "blocked" ? "disabled" : "") + ' aria-label="Mark synthetic preparation complete">' + (t.status === "completed" ? "✓" : "") + '</button><div class="task-main"><h4>' + esc(t.title) + '</h4><div class="task-meta"><span class="badge ' + (t.status === "waiting" || t.status === "blocked" ? "closed" : "") + '">' + esc(t.status.toUpperCase()) + '</span><span>' + esc(t.category) + '</span><span>' + esc(t.target_ids.length > 1 ? "Supports " + t.target_ids.length + " targets" : "Program-specific work") + '</span></div>' + (t.reason ? '<p>' + esc(t.reason) + '</p>' : "") + (t.waiting_for ? '<p>' + (t.status === "completed" ? "Synthetic event recorded." : "External confirmation is required; estimated work time cannot satisfy it.") + '</p>' : "") + '</div><span class="task-hours">' + hours(t.hours_high) + 'h</span></article>').join("");
-  $("task-list").querySelectorAll("[data-complete]").forEach(b => b.onclick = () => action("Updating the synthetic completion state…", async () => {
+  renderRoadmap(plan);
+  $("task-list").innerHTML = plan.tasks.map(t => '<article class="task"><button class="task-check ' + (t.status === "completed" ? "done" : "") + '" data-complete="' + esc(t.task_id) + '" ' + (t.waiting_for || t.status === "waiting" || t.status === "blocked" ? "disabled" : "") + ' aria-label="Toggle my preparation completion">' + (t.status === "completed" ? "✓" : "") + '</button><div class="task-main"><h4>' + esc(t.title) + '</h4><div class="task-meta"><span class="badge ' + (t.status === "waiting" || t.status === "blocked" ? "closed" : "") + '">' + esc(t.status.toUpperCase()) + '</span><span>' + esc(t.category) + '</span><span>' + esc(t.target_ids.length > 1 ? "Supports " + t.target_ids.length + " targets" : "Program-specific work") + '</span></div>' + (t.reason ? '<p>' + esc(t.reason) + '</p>' : "") + (t.waiting_for ? '<p>' + (t.status === "completed" ? "Receipt marked by you; not independently verified." : "External confirmation is required; estimated work time cannot satisfy it.") + '</p>' : "") + '</div><span class="task-hours">' + hours(t.hours_high) + 'h</span></article>').join("");
+  $("task-list").querySelectorAll("[data-complete]").forEach(b => b.onclick = () => action("Updating your completion state…", async () => {
     const updated = profile();
     const id = b.dataset.complete;
     updated.completed_task_ids = updated.completed_task_ids.includes(id) ? updated.completed_task_ids.filter(x => x !== id) : [...updated.completed_task_ids,id];
@@ -140,6 +256,19 @@ function setPlan(plan, mode = "official") {
     setPlan(await api("/api/plan", {selected_ids: state.selected,profile: updated}));
     notify("Preparation state updated in a new proposal.");
   }));
+  for (const [index, task] of plan.tasks.entries()) $("task-list").children[index].dataset.taskCategory = task.category;
+  const taskCategories = ["All", ...["Shared", "Research", "Company"].filter(category => plan.tasks.some(task => task.category === category))];
+  if (!taskCategories.includes(state.taskCategory)) state.taskCategory = "All";
+  $("task-filters").innerHTML = taskCategories.map(category => {
+    const count = plan.tasks.filter(task => category === "All" || task.category === category).length;
+    const label = category === "All" ? "All work" : category === "Shared" ? "Shared foundations" : category;
+    return '<button class="filter" data-task-filter="' + category + '" aria-pressed="' + (category === state.taskCategory) + '">' + esc(label) + ' <span>' + count + '</span></button>';
+  }).join("");
+  $("task-filters").querySelectorAll("button").forEach(button => button.onclick = () => {
+    state.taskCategory = button.dataset.taskFilter;
+    applyTaskFilter();
+  });
+  applyTaskFilter();
   for (const [index, task] of plan.tasks.entries()) {
     if (!task.waiting_for) continue;
     const container = $("task-list").children[index]?.querySelector(".task-main");
@@ -147,13 +276,13 @@ function setPlan(plan, mode = "official") {
     const observed = (plan.profile.received_events || []).includes(task.waiting_for);
     const button = document.createElement("button");
     button.className = "receipt-btn secondary";
-    button.textContent = observed ? "Undo synthetic receipt" : "Record synthetic receipt";
+    button.textContent = observed ? "Undo my receipt confirmation" : "I confirm this was received";
     button.disabled = mode === "simulation";
-    button.onclick = () => action("Recording an explicitly observed synthetic event…", async () => {
+    button.onclick = () => action("Saving your receipt confirmation…", async () => {
       const updated = profile();
       updated.received_events = observed ? updated.received_events.filter(e => e !== task.waiting_for) : [...updated.received_events, task.waiting_for];
       setPlan(await api("/api/plan", {selected_ids: state.selected, profile: updated}));
-      notify("Synthetic receipt state updated. No letter, document, email or application was sent.");
+      notify("Your receipt confirmation was saved. Delivery has not been checked independently.");
     });
     container.appendChild(button);
   }
@@ -161,11 +290,15 @@ function setPlan(plan, mode = "official") {
     const op = state.opportunities.find(o => o.id === t.target_id);
     return '<div class="check-card"><h4>' + esc(op?.program || t.target_id) + '</h4><span class="badge ' + (t.schedule_status === "infeasible" || t.eligibility === "not_eligible" ? "closed" : "unknown") + '">' + esc(t.schedule_status.replaceAll("_"," ").toUpperCase()) + '</span><p>' + esc((t.reasons || []).join(" ")) + '</p>' + (t.criteria || []).slice(0,5).map(c => '<div class="criteria-item"><strong>' + esc(c.status.replaceAll("_"," ")) + '</strong><span>' + esc(c.explanation) + '</span></div>').join("") + '</div>';
   }).join("");
-  const candidates = state.opportunities.filter(o => state.selected.includes(o.id) && Number(fact(o,"reference_min")?.value) > 0);
-  $("simulation-target").innerHTML = candidates.map(o => '<option value="' + esc(o.id) + '">' + esc(o.program) + '</option>').join("");
-  $("simulate-btn").disabled = !candidates.length;
-  if (!candidates.length) $("simulation-target").innerHTML = '<option>No supported reference rule selected</option>';
   renderEvidence(); renderCards(); updateSelected();
+}
+function applyTaskFilter() {
+  document.querySelectorAll("#task-list .task").forEach(task => task.classList.toggle("hidden", state.taskCategory !== "All" && task.dataset.taskCategory !== state.taskCategory));
+  document.querySelectorAll("#task-filters button").forEach(button => {
+    const active = button.dataset.taskFilter === state.taskCategory;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
 }
 function renderEvidence() {
   if (!state.plan) return;
@@ -175,7 +308,7 @@ function renderEvidence() {
     const key = e.target_id + "/" + (version ? version.split("@")[0] : e.task_id);
     if (seen.has(key)) return false; seen.add(key); return true;
   });
-  $("evidence-list").innerHTML = evidence.length ? evidence.slice(0,18).map(e => '<article class="evidence-card"><div class="evidence-path">' + (e.nodes || []).map(n => '<span>' + esc(nodeLabel(n)) + '</span>').join(" → ") + '</div>' + (e.excerpt ? '<blockquote>' + esc(e.excerpt) + '</blockquote>' : '<p class="muted">Explicit preparation recipe; effort is estimated.</p>') + (e.source_url ? '<a class="source-link" href="' + esc(safeUrl(e.source_url)) + '" target="_blank" rel="noopener noreferrer">Read supporting source ↗</a>' : "") + '</article>').join("") : '<div class="empty-state"><p>No evidence paths were returned. Review the missing source information.</p></div>';
+  $("evidence-list").innerHTML = evidence.length ? evidence.slice(0,18).map(e => '<article class="evidence-card"><div class="evidence-path">' + (e.nodes || []).map(n => '<span title="' + esc(n) + '">' + esc(nodeLabel(n)) + '</span>').join(" → ") + '</div>' + (e.excerpt ? '<blockquote>' + esc(e.excerpt) + '</blockquote>' : '<p class="muted">Explicit preparation recipe; effort is estimated.</p>') + (e.source_url ? '<a class="source-link" href="' + esc(safeUrl(e.source_url)) + '" target="_blank" rel="noopener noreferrer">Read supporting source ↗</a>' : "") + '</article>').join("") : '<div class="empty-state"><p>No evidence paths were returned. Review the missing source information.</p></div>';
 }
 
 function nodeLabel(id) {
@@ -188,42 +321,39 @@ function nodeLabel(id) {
   if (id.startsWith("plan-")) return "Saved plan";
   const name = id.split("/").pop().split("@")[0];
   const labels = {reference_min:"Required reference count",reference_received_before_submit:"Receipt before submission",reference_submitter:"Qualifying recommender",reference_forbidden:"Reference exception",application_deadline:"Application cutoff",portal_status:"Portal state",transcript_translation:"Transcript language rule",statement_max_words:"Statement word limit",statement_max_chars:"Statement character limit",documents:"Required documents",requirement_set:"Requirement membership",institution_approval:"Institution approval"};
-  if (id.includes("/deliverable/")) return "Required " + name.replaceAll("_", " ");
+  if (id.includes("/deliverable/")) {
+    const groups = {cs_topics: "CS preparation requirement", programming_languages: "Programming preparation requirement", preferred_skills: "Suggested skill preparation", skills: "Skill preparation requirement"};
+    const group = Object.keys(groups).find(key => name.startsWith(key + "_"));
+    return group ? groups[group] : "Required " + name.replaceAll("_", " ");
+  }
   return labels[name] || name.replaceAll("_", " ");
 }
 document.querySelectorAll(".step").forEach(b => b.onclick = () => showStep(b.dataset.step));
 document.querySelectorAll(".filter").forEach(b => b.onclick = () => { state.category = b.dataset.category; document.querySelectorAll(".filter").forEach(x => x.classList.toggle("active",x===b)); renderCards(); });
-$("search-form").onsubmit = e => { e.preventDefault(); action("Searching and fetching public sources with TinyFish…", async () => {
-  const result = await api("/api/discover",{query:$("search-query").value});
-  const map = new Map(state.opportunities.map(o=>[o.id,o]));
-  (result.opportunities || []).forEach(o=>map.set(o.id,o)); state.opportunities = [...map.values()];
-  $("source-caption").textContent = "LIVE · TinyFish search/fetch · Checked " + dateLabel(new Date().toISOString());
-  renderCards(); updateSelected();
-  notify(result.errors?.length ? "Discovery completed with source gaps: " + result.errors.join(" ") : "Public sources checked. Review requirements before choosing targets.", !!result.errors?.length);
-}); };
-$("examples-btn").onclick = () => action("Loading labeled snapshots from official sources…", async () => {
-  const result = await api("/api/examples"); state.opportunities = result.opportunities || [];
-  $("source-caption").textContent = "CACHED OFFICIAL SOURCES · Original checked dates are shown · Refresh before relying on a deadline";
-  renderCards(); updateSelected(); notify("Examples loaded from official-source snapshots. They are cached, not a live search.");
-});
 $("plan-btn").onclick = () => action("Traversing target requirements and shared preparation in FalkorDB…", async () => {
-  state.impact = null; $("impact-details").innerHTML = ""; setPlan(await api("/api/plan",{selected_ids:state.selected,profile:profile()}));
+  for (const id of ["weekly-hours", "start-date", "exam-week", "holiday-date", "hours-0", "hours-1", "hours-2", "hours-3", "hours-4", "hours-5", "hours-6", "profile-country", "profile-field", "profile-year", "profile-total-years", "horizon-weeks"]) {
+    if (!$(id).reportValidity()) throw new Error("Check your preparation time and dates before continuing.");
+  }
+  if (state.useHuntSelection) await prepareSelectedListings();
+  state.impact = null; setPlan(await api("/api/plan",{selected_ids:state.selected,profile:profile()}));
+  $("prep-settings").open = false;
   showStep("plan"); notify("Preparation proposal built from graph context. Review uncertain and waiting states before accepting.");
 });
+$("setup-plan-btn").onclick = () => {
+  if (busy) return;
+  $("prep-settings").open = true;
+  showStep("plan");
+  notify("Set one weekly time budget for your selected targets. Exam weeks stay protected.");
+  $("plan-section").scrollIntoView({ block: "start" });
+  $("weekly-hours").focus({ preventScroll: true });
+};
 $("back-btn").onclick = () => showStep("discover");
 $("accept-btn").onclick = () => action("Checking fact versions and saving the accepted plan…", async () => {
   setPlan(await api("/api/plan/" + encodeURIComponent(state.plan.id) + "/accept?mode=" + state.mode,{}),state.mode);
   notify("Plan accepted and saved. This accepts preparation only; no internship application was submitted.");
 });
-$("simulate-btn").onclick = () => action("Tracing one simulated policy change through a separate FalkorDB graph…", async () => {
-  const result = await api("/api/simulate",{selected_ids:state.selected,profile:profile(),opportunity_id:$("simulation-target").value,fact_name:"reference_min",value:2});
-  state.impact = result.impact; setPlan(result.after,"simulation");
-  const i=result.impact;
-  const impacted = result.after.tasks.filter(t => i.affected_task_ids.includes(t.task_id));
-  $("impact-details").innerHTML = '<div class="impact-result"><b>SIMULATION · Field-level impact</b><p>' + esc(i.affected_target_ids.length) + ' target(s), ' + esc(i.affected_task_ids.length) + ' task(s) need review.</p>' + impacted.map(t=>'<span class="impact-path">'+esc(t.title)+'</span>').join("") + '<p>Compatible completed base work is preserved. Full supporting paths are in Evidence.</p></div>';
-  notify("Simulated change reviewed. Original official facts remain unchanged.");
-});
 $("agent-btn").onclick = () => action("The agent is choosing tools and reviewing graph evidence…", async () => {
+  if (state.useHuntSelection) await prepareSelectedListings();
   const result = await api("/api/agent",{selected_ids:state.selected,profile:profile(),message:"Inspect requirements and propose my preparation plan. Explain the most important blocker and next action."});
   state.trace = result.trace || [];
   const proposal = [...(result.results || [])].reverse().find(r=>r.result?.plan);
@@ -237,12 +367,13 @@ async function init() {
     const result=await api("/api/health");
     const healthy=!!(result.database?.healthy || result.database?.status==="ok" || result.database?.ok);
     $("health-text").textContent=healthy?"FalkorDB connected":"Graph needs attention"; $("db-dot").classList.toggle("off",!healthy);
+    const agentEnabled = result.discovery?.agent_enabled === true;
+    $("agent-status").textContent = agentEnabled ? "TinyFish browser Agent enabled · metered fallback" : "TinyFish browser Agent off · Search/Fetch separate";
+    $("agent-status").title = result.discovery?.agent_gate || "This is separate from Groq's preparation agent. Configuration does not prove a live run.";
     const saved=await api("/api/opportunities"); state.opportunities=saved.opportunities || [];
-    if(state.opportunities.length)renderCards();
     const previous=await api("/api/plan/latest");
-    if(previous.plan){ setPlan(previous.plan); $("weekly-hours").value=previous.plan.profile.weekly_hours; $("start-date").value=previous.plan.profile.start_date; $("exam-week").value=previous.plan.profile.exam_weeks?.[0] || ""; notify("Saved preparation plan recovered from FalkorDB."); }
+    if(previous.plan && !busy && !state.plan){ fillProfile(previous.plan.profile); setPlan(previous.plan); if(!state.hunt)notify("Saved preparation plan recovered from FalkorDB."); }
     updateSelected();
-  } catch(e){$("health-text").textContent="Server unavailable";$("db-dot").classList.add("off");notify(e.message,true);}
+  } catch(e){$("health-text").textContent="Server unavailable";$("db-dot").classList.add("off");$("agent-status").textContent="Browser Agent status unavailable";notify(e.message,true);}
 }
 init();
-
