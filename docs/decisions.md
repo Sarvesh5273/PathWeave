@@ -1,5 +1,10 @@
 # Decision log
 
+October18layout correction: Sarvesh found the880pxwhole-page shell cramped. Root
+acknowledged overcorrection and restored a consistent1120pxdesktop frame for header,
+content/navigation and footer, with880pxlimits only for detailed forms. Responsive
+gutters retained. Screenshot-led CSS correction; no browser verification claimed.
+
 October18navbar follow-up: user screenshot showed header/footer wider than decision
 content. Header/footer now follow the same880pxdecision-screen width; working screens
 retain1120px. CSS-only alignment correction; no browser run.
