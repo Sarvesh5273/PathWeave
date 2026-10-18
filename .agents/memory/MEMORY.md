@@ -2,3 +2,4 @@
 - [Brand palette scope](brand-palette.md) — keep cream and orange; layout redesign permission does not imply new brand colors.
 - [App chrome widths](app-chrome-widths.md) — navbar/footer should use the laptop viewport; narrow form columns should not constrain them.
 - [Git authorization evidence](git-authorization.md) — a connected GitHub card does not prove workspace Git can push; verify the actual write path.
+- [Roadmap purpose](roadmap-purpose.md) — the primary output must explain what topics to study for interviews, not overwhelm users with verification tasks.

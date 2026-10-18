@@ -20,4 +20,5 @@ data/runtime/
 /generated-artifacts/
 
 # Review-only screenshot uploads (not application assets)
-/attached_assets/Screenshot_2026-10-18_at_7.58.*.png
+/attached_assets/Screenshot_*.png
+/attached_assets/Pasted-Preparation-proposal-*.txt
