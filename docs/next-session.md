@@ -1,5 +1,11 @@
 # Resume handoff
 
+Read docs/project-handoff.md first after AGENTS.md for the consolidated current
+product/implementation/limits. README “Planned development” is authored. Source/UI
+commits through2daa34bare pushed; new handoff docs need pushing. Latest UI follows
+five steps and a consistent1120pxdesktop frame,880pxforms; screenshot-led changes
+had syntax/markup checks only, not browser verification. No repeat provider hunts.
+
 October18 ~18:55 IST checkpoint supersedes the older roadmap-pending entries below.
 v0.7.0 implements the graph learning roadmap and editable timetable: source-fact
 topics, prerequisite/resource edges, self-reported topic checks, per-day hours,
