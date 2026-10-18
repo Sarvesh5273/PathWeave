@@ -772,10 +772,10 @@ body[data-story="time"] #edit-time-btn { display: none; }
 }
 
 /* Content-led widths: compact decision screens, wider working screens. */
-.topbar, footer { width: calc(100% - 64px); max-width: 1120px; padding-left: 0; padding-right: 0; }
+.topbar, footer { width: 100%; max-width: none; padding-left: clamp(20px, 3.333vw, 48px); padding-right: clamp(20px, 3.333vw, 48px); }
 main { width: calc(100% - 64px); max-width: 1120px; padding-left: 0; padding-right: 0; min-width: 0; }
-/* Keep the application frame consistent across chapters; constrain forms inside it. */
-.topbar, main, footer { width: calc(100% - 96px); max-width: 1120px; }
+/* Full-width app chrome; keep the reading and form column constrained. */
+main { width: calc(100% - 96px); max-width: 1120px; }
 body[data-story="explore"] .explorer,
 body[data-story="search"] .scout-form,
 body[data-story="time"] .prep-settings { max-width: 880px; }
@@ -810,7 +810,8 @@ body[data-story="start"] .path-card:hover { border-color: var(--orange); backgro
 footer { margin-top: 20px; gap: 24px; }
 footer p { max-width: 300px; }
 @media (max-width: 900px) {
-  .topbar, main, footer { width: calc(100% - 48px); }
+  main { width: calc(100% - 48px); }
+  .topbar, footer { padding-left: 24px; padding-right: 24px; }
   .journey-nav { gap: 8px; }
   .journey-nav i { max-width: 38px; }
   .journey-heading { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(230px,.85fr); gap: 28px; padding-top: 40px; }
@@ -819,7 +820,8 @@ footer p { max-width: 300px; }
   body[data-story="start"] .path-card { padding: 46px 20px 24px; gap: 14px; }
 }
 @media (max-width: 650px) {
-  .topbar, main, footer { width: calc(100% - 40px); padding-left: 0; padding-right: 0; }
+  main { width: calc(100% - 40px); padding-left: 0; padding-right: 0; }
+  .topbar, footer { padding-left: 20px; padding-right: 20px; }
   .topbar { flex-wrap: wrap; gap: 10px; }
   .brand { min-width: 0; font-size: 23px; }
   .brand-sub { font-size: 11px; max-width: 220px; }

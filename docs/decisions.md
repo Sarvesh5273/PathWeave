@@ -1,5 +1,12 @@
 # Decision log
 
+## Full-width navbar and footer — October 18, 2026
+
+The user identified excessive side margins in laptop screenshots. Navbar/footer
+now use the full viewport width with modest responsive inner padding, independently
+of the narrower main content and form columns. This supersedes the historical
+shared-width header/content/footer decision below. No palette or behavior change.
+
 ## Replit frontend redesign and palette correction — October 18, 2026
 
 The user authorized a full responsive UI redesign with animations in this workspace

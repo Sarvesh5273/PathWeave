@@ -1,5 +1,10 @@
 # Task tracker
 
+October 18 laptop-width correction: navbar/footer now span the viewport with
+20–48px inner gutters. Main content and detailed forms remain centered/constrained.
+This supersedes earlier notes requiring the navbar/footer to share the 1120px frame.
+Cream/orange palette, navigation, animations and backend behavior are unchanged.
+
 October 18 Replit UI checkpoint: user authorized a full frontend redesign,
 animations and responsiveness, then explicitly rejected green/cool accent panels.
 The interface now retains cream/orange with revised typography, five-step navigation,

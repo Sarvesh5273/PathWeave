@@ -1,2 +1,3 @@
 - [Local and Replit environments](environment-boundaries.md) — the working laptop app and imported workspace are separate; confirm which copy supplied evidence.
 - [Brand palette scope](brand-palette.md) — keep cream and orange; layout redesign permission does not imply new brand colors.
+- [App chrome widths](app-chrome-widths.md) — navbar/footer should use the laptop viewport; narrow form columns should not constrain them.

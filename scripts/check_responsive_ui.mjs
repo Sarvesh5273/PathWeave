@@ -194,7 +194,11 @@ try {
         const activeNav = document.querySelector('.journey-step[aria-current="step"]');
         const navRect = activeNav?.getBoundingClientRect();
         const clipping = [...document.querySelectorAll('button,input,select,textarea')].filter(el => visible(el) && !el.disabled && el.getBoundingClientRect().width < 24).map(el=>el.id||el.className);
-        return {scrollWidth:document.documentElement.scrollWidth,width,overflowing,clipping,
+        const chrome = ['.topbar','footer'].map(selector => {
+          const el=document.querySelector(selector), r=el.getBoundingClientRect();
+          return {selector,left:r.left,width:r.width,padding:parseFloat(getComputedStyle(el).paddingLeft)};
+        });
+        return {scrollWidth:document.documentElement.scrollWidth,width,availableWidth:document.documentElement.clientWidth,overflowing,clipping,chrome,
           activeNavVisible:!navRect || (navRect.left>=-1 && navRect.right<=width+1),
           stage:document.body.dataset.story};
       })()`);
@@ -202,6 +206,11 @@ try {
       assert(layout.scrollWidth <= width + 1, `${width}/${stage}: horizontal page overflow ${JSON.stringify(layout)}`);
       assert(layout.overflowing.length === 0, `${width}/${stage}: offscreen elements ${JSON.stringify(layout.overflowing)}`);
       assert(layout.activeNavVisible, `${width}/${stage}: current step is offscreen`);
+      for (const frame of layout.chrome) {
+        assert(Math.abs(frame.left) <= 1 && Math.abs(frame.width - layout.availableWidth) <= 1,
+          `${width}/${stage}: ${frame.selector} does not span the viewport`);
+        assert(frame.padding >= 20 && frame.padding <= 48, `${width}/${stage}: excessive app chrome padding`);
+      }
       if ([375, 1440].includes(width)) {
         const shot = await client.send("Page.captureScreenshot", { format: "jpeg", quality: 75, captureBeyondViewport: false });
         await writeFile(`${directory}/${stage}-${width}.jpg`, Buffer.from(shot.data, "base64"));
