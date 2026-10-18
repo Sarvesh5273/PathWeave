@@ -154,6 +154,24 @@ default. FalkorDB remains the graph reasoning/evidence/plans store. This archite
 requires persistent local disk and a single hosting process; it is not a verified
 multi-host/serverless queue. Public showcase/reviewer-reserve parity remains unfinished.
 
+## Planned development
+
+The current version delivers manual availability, self-reported topic levels and a
+reviewed starter roadmap. The next development areas are:
+
+- **Timetable import:** editable weekly and semester schedules from images, PDF or ICS.
+- **Knowledge checks:** small topic checks and practical exercises beyond self-ratings.
+- **Richer preparation:** broader reviewed learning resources and source-supported
+  company/research selection-stage guidance.
+- **Calendar planning:** clock-time study sessions, exam buffers and conflict handling.
+- **Discovery reliability:** broader source coverage and better selective extraction/rechecks.
+- **Progress adaptation:** clearer replanning when work, targets or availability change.
+- **Hosted access:** secure accounts, cross-device recovery and durable protected storage.
+
+These are planned directions, not implemented features or promised release dates.
+The [full product handoff](docs/project-handoff.md) separates the original vision,
+implemented behavior, verification limits and remaining submission work.
+
 ## AI disclosure and participant contribution
 
 Codex and delegated coding agents researched, planned and implemented the project.
@@ -174,5 +192,5 @@ to resume. The official event closes October 18, 2026, 23:59 IST.
 [Overview](https://www.wemakedevs.org/hackathons/falkordb) ·
 [Review](docs/hackathon-review.md).
 
-Repository publication is being completed manually through VS Code. A demo video
+Source commits have been pushed to the PathWeave GitHub repository. A demo video
 and final event submission remain pending; no submission receipt is claimed.

@@ -1,5 +1,13 @@
 # Task tracker
 
+Current handoff: docs/project-handoff.md consolidates the intended product, delivered
+v0.7core, latest five-step UI, actual verification scope and remaining work. README
+now has “Planned development” separating unfinished features from delivery obligations.
+All source/UI commits through2daa34bwere pushed to origin/main in this chat; subsequent
+documentation updates need pushing. Repository visibility/video/submission receipt
+are not established by that Git push. Current desktop frame is1120pxconsistently,
+with880pxdetailed forms; prior whole-page880pxentries below are historical.
+
 Latest screenshot correction: starburst branding removed; compact880pxdecision
 screens and1120pxworking views, stacked mobile cards and balanced spacing authored.
 No browser run. User visual review remains the next check; D033.
