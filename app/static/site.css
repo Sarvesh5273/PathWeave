@@ -218,6 +218,42 @@ details[open] > summary > b { transform: rotate(45deg); }
 .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 17px; align-items: start; }
 .card { background: var(--paper); padding: 20px; border: 1px solid var(--border); border-radius: var(--radius); position: relative; min-width: 0; }
 .card.selected { border-color: var(--orange); box-shadow: inset 0 0 0 1px var(--orange); }
+
+/* Short, functional motion; no animation library or layout-changing effects. */
+.primary, .secondary, .select-btn, .path-card, .step, .card, .roadmap-item,
+.task-row, input, select, .source-link {
+  transition: transform 180ms cubic-bezier(.22,1,.36,1), background-color 180ms ease,
+    border-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+}
+@media (hover: hover) {
+  .path-card:not(:disabled):hover, .card:hover, .roadmap-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(81,59,42,.08);
+  }
+  .primary:not(:disabled):hover, .secondary:not(:disabled):hover,
+  .select-btn:not(:disabled):hover { transform: translateY(-1px); }
+  .primary:not(:disabled):hover span, .path-card:hover .path-arrow { transform: translateX(3px); }
+}
+.primary span, .path-arrow { transition: transform 180ms ease; }
+.primary:not(:disabled):active, .secondary:not(:disabled):active,
+.select-btn:not(:disabled):active, .path-card:not(:disabled):active { transform: scale(.985); }
+.hero-copy, .hero-note, .start-paths { animation: pw-enter 420ms cubic-bezier(.22,1,.36,1) both; }
+.hero-note { animation-delay: 70ms; }
+.start-paths { animation-delay: 110ms; }
+details[open] > :not(summary) { animation: pw-enter 180ms ease both; }
+.notification { position: relative; overflow: hidden; }
+.is-working .notification::after {
+  content: ""; position: absolute; left: 0; bottom: 0; width: 32%; height: 2px;
+  background: var(--orange); animation: pw-progress 1.4s ease-in-out infinite;
+}
+.run-stages li.current { animation: pw-stage 1.8s ease-in-out infinite; }
+@keyframes pw-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pw-progress { from { transform: translateX(-110%); } to { transform: translateX(420%); } }
+@keyframes pw-stage { 50% { box-shadow: 0 0 0 3px rgba(201,84,32,.12); } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  .path-card:hover, .card:hover, .roadmap-item:hover { transform: none; }
+}
 .card-top { display: flex; gap: 11px; align-items: flex-start; }
 .org-icon { display: grid; place-items: center; flex-shrink: 0; width: 39px; height: 39px; background: #f3e6d4; border: 1px solid #e5ceb2; border-radius: 7px; color: var(--orange-dark); font: 500 10px "Space Grotesk"; }
 .card-title { flex: 1; min-width: 0; }

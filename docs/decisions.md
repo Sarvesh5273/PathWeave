@@ -1,5 +1,13 @@
 # Decision log
 
+## D031 — Focused UI motion pass
+
+October18,2026,IST: Sarvesh requested shadcn-like animations. Root added lightweight
+CSS/Web Animations API entrance, hover/press, page-transition and active-progress
+effects without a React migration or new dependency. Reduced-motion preferences
+disable effects. Local navigation/styles checked; no browser JavaScript errors
+observed. No provider calls or plan mutations. Footer branding corrected to PathWeave.
+
 ## D030 — PathWeave name accepted; manual repository publication
 
 October18,2026,IST: Sarvesh selected PathWeave and “Discover internships. Build your

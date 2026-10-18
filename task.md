@@ -1,5 +1,9 @@
 # Task tracker
 
+Latest UI pass: short entrance/navigation/hover/press/progress animations implemented
+with CSS and browser APIs, reduced-motion respected. Local navigation/style check
+passed without JS errors; no provider calls. No shadcn/React dependency migration.
+
 Latest delivery step: product name PathWeave and tagline accepted; Just_Chill is the
 team. User will publish manually using VS Code's configured GitHub account. Local
 branding/README/graph model updated. Public repository URL/visibility not yet verified.

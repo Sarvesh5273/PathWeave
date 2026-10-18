@@ -23,11 +23,11 @@ async function api(path, data) {
 }
 async function action(label, fn) {
   if (busy) return;
-  busy = true; notify(label);
+  busy = true; document.body.classList.add("is-working"); notify(label);
   document.querySelectorAll("button").forEach(b => { b.dataset.wasDisabled = b.disabled ? "1" : "0"; b.disabled = true; });
   try { await fn(); } catch (e) { notify(e.message || "Could not complete this action.", true); }
   finally {
-    busy = false;
+    busy = false; document.body.classList.remove("is-working");
     document.querySelectorAll("button").forEach(b => {
       if (b.dataset.wasDisabled !== undefined) { b.disabled = b.dataset.wasDisabled === "1"; delete b.dataset.wasDisabled; }
     });
@@ -36,6 +36,7 @@ async function action(label, fn) {
   }
 }
 function showStep(name) {
+  const changed = state.currentStep !== name;
   state.currentStep = name;
   document.body.dataset.page = name;
   for (const s of ["discover", "plan", "evidence"]) $(s + "-section").classList.toggle("hidden", s !== name);
@@ -45,6 +46,12 @@ function showStep(name) {
     else b.removeAttribute("aria-current");
   });
   if (name === "evidence") renderEvidence();
+  const section = $(name + "-section");
+  if (changed && section && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    section.getAnimations().forEach(animation => animation.cancel());
+    section.animate([{opacity:0,transform:"translateY(10px)"},{opacity:1,transform:"translateY(0)"}],
+      {duration:240,easing:"cubic-bezier(.22,1,.36,1)"});
+  }
 }
 function browserToken() {
   let token = localStorage.getItem("scout-client");
