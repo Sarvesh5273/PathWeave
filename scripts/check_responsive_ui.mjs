@@ -1,0 +1,248 @@
+/**
+ * Dependency-free Chromium smoke check for the actual frontend.
+ * Uses explicitly synthetic API responses, never live providers or graph writes.
+ * Run: node --experimental-websocket scripts/check_responsive_ui.mjs
+ * Optional: UI_TEST_URL=https://... CHROMIUM_PATH=/path/to/chromium
+ */
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createServer } from "node:net";
+
+const base = process.env.UI_TEST_URL || `https://${process.env.REPLIT_DEV_DOMAIN}`;
+assert(!base.includes("undefined"), "Set UI_TEST_URL or REPLIT_DEV_DOMAIN");
+const directory = "generated-artifacts/responsive-ui";
+await mkdir(directory, { recursive: true });
+const profileDirectory = await mkdtemp(join(tmpdir(), "pathweave-ui-"));
+const reservation = createServer();
+await new Promise(resolve => reservation.listen(0, "127.0.0.1", resolve));
+const port = reservation.address().port;
+await new Promise(resolve => reservation.close(resolve));
+const chrome = spawn(process.env.CHROMIUM_PATH || "/repl/tools/bin/chromium", [
+  "--headless", "--no-sandbox", "--disable-dev-shm-usage",
+  `--remote-debugging-port=${port}`, `--user-data-dir=${profileDirectory}`,
+  "--no-first-run", "--no-default-browser-check", "about:blank",
+], { stdio: ["ignore", "ignore", "ignore"] });
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+let client;
+
+class CDP {
+  constructor(url) {
+    this.socket = new WebSocket(url);
+    this.sequence = 0;
+    this.pending = new Map();
+    this.handlers = new Map();
+    this.ready = new Promise((resolve, reject) => {
+      this.socket.addEventListener("open", resolve, { once: true });
+      this.socket.addEventListener("error", reject, { once: true });
+    });
+    this.socket.addEventListener("message", event => {
+      const data = JSON.parse(event.data);
+      if (data.id) {
+        const request = this.pending.get(data.id);
+        if (!request) return;
+        clearTimeout(request.timer);
+        this.pending.delete(data.id);
+        data.error ? request.reject(new Error(JSON.stringify(data.error))) : request.resolve(data.result);
+      } else {
+        for (const handler of this.handlers.get(data.method) || []) handler(data.params);
+      }
+    });
+  }
+  on(method, handler) {
+    this.handlers.set(method, [...(this.handlers.get(method) || []), handler]);
+  }
+  async send(method, params = {}) {
+    await this.ready;
+    return new Promise((resolve, reject) => {
+      const id = ++this.sequence;
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(`CDP timeout: ${method}`));
+      }, 20000);
+      this.pending.set(id, { resolve, reject, timer });
+      this.socket.send(JSON.stringify({ id, method, params }));
+    });
+  }
+  async evaluate(expression) {
+    const result = await this.send("Runtime.evaluate", {
+      expression, awaitPromise: true, returnByValue: true,
+    });
+    assert(!result.exceptionDetails, JSON.stringify(result.exceptionDetails));
+    return result.result.value;
+  }
+}
+
+const listing = {
+  id: "ui-fixture-target", title: "Software Engineering and Scientific Computing Internship",
+  organization: "Synthetic University Research Laboratory",
+  locations: ["Germany"], cycle: "2027", kind: "job", score: 85,
+  summary: "Synthetic UI fixture only. Python and algorithms with source-linked requirements.",
+  call_status: "unknown", visa_status: "unknown", funding_level: "paid", is_new: true,
+  deadline_text: null, deadline_precision: "unknown", funding_note: "Funding details remain unknown.",
+  requirements: [{ name: "skills", kind: "requirement", status: "known", excerpt: "Python and algorithms required." }],
+  reasons: ["Advisory role fit, not eligibility certification."],
+  apply_url: "https://example.org/internships/fixture", found_via: "search",
+  checked_at: "2026-10-18T10:00:00Z", saved: false, hidden: false,
+};
+const hunt = { id: "ui-fixture-hunt", name: "Synthetic UI check", preferences: {}, result: { listings: [listing] } };
+const run = {
+  id: "ui-fixture-run", hunt: hunt.id, status: "partial", error: null,
+  events: ["search", "fetch", "extract", "match"].map(stage => ({ stage, message: `Synthetic ${stage} stage.` })),
+};
+const fixtureProfile = {
+  start_date: "2026-10-19", horizon_weeks: 4, weekly_hours: 6,
+  exam_weeks: ["2026-11-02"], holidays: ["2026-10-25"],
+  weekly_pattern: {}, skill_ratings: {}, received_events: [],
+};
+const plan = {
+  id: "ui-fixture-plan", status: "proposed", selected_ids: [listing.id],
+  next_action: "Review Python foundations before preparing your shared project.",
+  profile: fixtureProfile, total_hours_low: 8, total_hours_high: 12, available_hours: 18,
+  warnings: ["Source coverage is partial. This synthetic fixture is only for checking the interface."],
+  weekly_used: { "2026-10-19": 6, "2026-10-26": 4, "2026-11-02": 0 },
+  tasks: [
+    { task_id: "python", title: "Practice Python foundations and explain your approach", category: "Shared", status: "planned", target_ids: [listing.id], hours_high: 4, reason: "Synthetic source-backed preparation fixture." },
+    { task_id: "document", title: "Prepare a target-specific statement of research interests", category: "Documents", status: "planned", target_ids: [listing.id], hours_high: 2 },
+  ],
+  targets: [{ target_id: listing.id, schedule_status: "cannot_certify", eligibility: "unknown", reasons: ["Source details require review."], criteria: [] }],
+  evidence: [{ nodes: ["Python foundations", "PREREQUISITE_OF", "Algorithms"], excerpt: "Python and algorithms required.", source_url: "https://example.org/internships/fixture" }],
+  roadmap: [
+    { key: "python", title: "Python foundations", order: 1, family: "Programming", start_here: true, prerequisites: [], required_by: { [listing.id]: ["skills"] }, resources: [{ title: "Python tutorial with a long source description", url: "https://docs.python.org/3/tutorial/" }], rating: "new", task_status: "planned" },
+    { key: "algorithms", title: "Algorithms and data structures", order: 2, family: "Computer science", prerequisites: ["python"], required_by: { [listing.id]: ["skills"] }, resources: [], task_status: "planned" },
+  ],
+};
+
+try {
+  let target;
+  for (let attempt = 0; attempt < 60; attempt++) {
+    try {
+      target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: "PUT" })).json();
+      break;
+    } catch { await wait(100); }
+  }
+  assert(target?.webSocketDebuggerUrl, "Chromium did not start");
+  client = new CDP(target.webSocketDebuggerUrl);
+  const errors = [];
+  const unexpectedRequests = [];
+  let graphUnavailable = false;
+  let graphReadsWhileDisconnected = 0;
+  client.on("Runtime.exceptionThrown", event => errors.push(event.exceptionDetails.text));
+  client.on("Fetch.requestPaused", event => {
+    const path = new URL(event.request.url).pathname;
+    let data;
+    if (path === "/api/health") data = { database: { status: graphUnavailable ? "unavailable" : "ok", healthy: !graphUnavailable }, provider_configured: { groq: true, tinyfish: true }, app_version: "UI fixture" };
+    else if (path === "/api/hunts") data = event.request.method === "POST" ? { hunt, run } : { hunts: [] };
+    else if (path === `/api/hunts/${hunt.id}`) data = hunt;
+    else if (path === `/api/hunts/${hunt.id}/listings`) data = { listings: [listing] };
+    else if (path === `/api/discovery-runs/${run.id}`) data = run;
+    else if (path === "/api/opportunities") data = { opportunities: [] };
+    else if (path === "/api/plan/latest") data = { plan: null };
+    else if (path === "/api/plan") data = plan;
+    else if (path.endsWith("/flags")) data = JSON.parse(event.request.postData || "{}");
+    else if (path === "/api/interest-scenarios") {
+      client.send("Fetch.continueRequest", { requestId: event.requestId }).catch(error => errors.push(error.message));
+      return;
+    } else {
+      unexpectedRequests.push(path);
+      data = { detail: "Unexpected endpoint in UI fixture" };
+    }
+    if (graphUnavailable && ["/api/opportunities", "/api/plan/latest"].includes(path)) graphReadsWhileDisconnected++;
+    client.send("Fetch.fulfillRequest", {
+      requestId: event.requestId, responseCode: unexpectedRequests.includes(path) ? 400 : 200,
+      responseHeaders: [{ name: "Content-Type", value: "application/json" }],
+      body: Buffer.from(JSON.stringify(data)).toString("base64"),
+    }).catch(error => errors.push(error.message));
+  });
+  await client.send("Page.enable");
+  await client.send("Runtime.enable");
+  await client.send("Fetch.enable", { patterns: [{ urlPattern: "*/api/*" }] });
+  await client.send("Page.navigate", { url: base });
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (await client.evaluate("typeof showStep === 'function' && typeof startExploration === 'function' && document.readyState === 'complete'")) break;
+    await wait(100);
+  }
+  await client.evaluate("localStorage.removeItem('scout-active-hunt'); localStorage.removeItem('scout-selected')");
+  await wait(500);
+  await client.evaluate(`window.__fixtureHunt = ${JSON.stringify(hunt)}; window.__fixturePlan = ${JSON.stringify(plan)};`);
+  const stages = ["start", "explore", "search", "results", "time", "roadmap", "evidence"];
+  const report = [];
+  for (const width of [320, 375, 430, 768, 1024, 1440]) {
+    await client.send("Emulation.setDeviceMetricsOverride", {
+      width, height: 900, deviceScaleFactor: 1, mobile: width < 600,
+    });
+    for (const stage of stages) {
+      if (stage === "start") await client.evaluate("showStep('discover','start')");
+      if (stage === "explore") await client.evaluate("startExploration()");
+      if (stage === "search") await client.evaluate("showStep('discover','search'); showSearch(); document.querySelector('#advanced-preferences').open=true");
+      if (stage === "results") await client.evaluate("(async()=>{state.hunt=window.__fixtureHunt; state.listings=window.__fixtureHunt.result.listings; state.useHuntSelection=true; state.listingSelected=[]; state.selected=[]; showStep('discover','results'); await renderScoutCards(); updateSelected()})()");
+      if (stage === "time") await client.evaluate("document.querySelector('[data-listing]').click(); document.querySelector('#setup-plan-btn').click(); document.querySelector('#prep-settings').open=true; document.querySelectorAll('#prep-settings details').forEach(el=>el.open=true)");
+      if (stage === "roadmap") await client.evaluate("setPlan(window.__fixturePlan); showStep('plan','roadmap')");
+      if (stage === "evidence") await client.evaluate("showStep('evidence','evidence')");
+      await wait(350);
+      await client.evaluate("window.scrollTo(0,0)");
+      const layout = await client.evaluate(`(() => {
+        const width = window.innerWidth;
+        const visible = el => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden';
+        const overflowing = [...document.querySelectorAll('body *')].filter(el => {
+          if (!visible(el)) return false;
+          const r = el.getBoundingClientRect();
+          return r.right > width + 1 || r.left < -1;
+        }).slice(0,12).map(el=>({tag:el.tagName,id:el.id,class:typeof el.className==='string'?el.className:'',right:Math.round(el.getBoundingClientRect().right)}));
+        const activeNav = document.querySelector('.journey-step[aria-current="step"]');
+        const navRect = activeNav?.getBoundingClientRect();
+        const clipping = [...document.querySelectorAll('button,input,select,textarea')].filter(el => visible(el) && !el.disabled && el.getBoundingClientRect().width < 24).map(el=>el.id||el.className);
+        return {scrollWidth:document.documentElement.scrollWidth,width,overflowing,clipping,
+          activeNavVisible:!navRect || (navRect.left>=-1 && navRect.right<=width+1),
+          stage:document.body.dataset.story};
+      })()`);
+      report.push({ width, stage, ...layout });
+      assert(layout.scrollWidth <= width + 1, `${width}/${stage}: horizontal page overflow ${JSON.stringify(layout)}`);
+      assert(layout.overflowing.length === 0, `${width}/${stage}: offscreen elements ${JSON.stringify(layout.overflowing)}`);
+      assert(layout.activeNavVisible, `${width}/${stage}: current step is offscreen`);
+      if ([375, 1440].includes(width)) {
+        const shot = await client.send("Page.captureScreenshot", { format: "jpeg", quality: 75, captureBeyondViewport: false });
+        await writeFile(`${directory}/${stage}-${width}.jpg`, Buffer.from(shot.data, "base64"));
+        const section = { explore: "#interest-explorer", search: "#search-form", results: "#opportunity-cards", time: "#prep-settings", roadmap: "#roadmap-list", evidence: "#evidence-list" }[stage];
+        if (section) {
+          await client.evaluate(`document.querySelector(${JSON.stringify(section)}).scrollIntoView({block:'start'})`);
+          const contentShot = await client.send("Page.captureScreenshot", { format: "jpeg", quality: 75, captureBeyondViewport: false });
+          await writeFile(`${directory}/${stage}-content-${width}.jpg`, Buffer.from(contentShot.data, "base64"));
+        }
+      }
+    }
+  }
+  await client.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
+  await client.evaluate("showStep('discover','start')");
+  assert.equal(await client.evaluate("matchMedia('(prefers-reduced-motion: reduce)').matches"), true);
+  const motionCount = await client.evaluate("document.getAnimations().filter(a=>a.playState==='running' && a.effect?.getTiming().duration>1).length");
+  assert.equal(motionCount, 0, "Reduced motion leaves long animations running");
+  await client.evaluate("document.querySelector('.journey-step').focus()");
+  await client.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 });
+  await client.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 });
+  const keyboard = await client.evaluate(`(() => {
+    const el=document.activeElement, css=getComputedStyle(el);
+    return {tag:el.tagName,outline:css.outlineStyle,outlineWidth:css.outlineWidth,visible:el.matches(':focus-visible')};
+  })()`);
+  assert.equal(keyboard.tag, "BUTTON");
+  assert.equal(keyboard.visible, true, "Keyboard focus is not visible");
+  assert.notEqual(keyboard.outline, "none", "No visible keyboard focus");
+  const preservedIds = await client.evaluate(`(() => {const ids=[...document.querySelectorAll('[id]')].map(el=>el.id);return {count:ids.length,unique:new Set(ids).size}})()`);
+  assert.equal(preservedIds.count, preservedIds.unique, "Duplicate HTML IDs");
+  assert.deepEqual(errors, [], "Browser JavaScript errors");
+  assert.deepEqual(unexpectedRequests, [], "Unexpected API calls");
+  graphUnavailable = true;
+  await client.evaluate("init()");
+  assert.equal(await client.evaluate("document.querySelector('#health-text').textContent"), "Graph not connected");
+  assert.match(await client.evaluate("document.querySelector('#notification').textContent"), /FalkorDB is not connected/);
+  assert.equal(graphReadsWhileDisconnected, 0, "Disconnected startup still queries graph-backed endpoints");
+  await writeFile(`${directory}/report.json`, JSON.stringify({ mode: "synthetic frontend fixtures, no live graph/provider verification", report, keyboard, motionCount, graphReadsWhileDisconnected, errors }, null, 2));
+  console.log(`PASS: ${report.length} screen/viewport checks; no horizontal overflow, current-step visibility, reduced motion, keyboard focus, disconnected-graph state, and no JavaScript errors. Synthetic frontend fixtures only.`);
+} finally {
+  client?.socket.close();
+  chrome.kill("SIGTERM");
+  await wait(250);
+  await rm(profileDirectory, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+}

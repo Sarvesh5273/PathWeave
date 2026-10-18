@@ -55,6 +55,7 @@ function showStep(name, story) {
   }
 }
 function setStoryStage(stage) {
+  const previousStage = document.body.dataset.story;
   document.body.dataset.story = stage;
   const copy = {
     start:["YOUR NEXT CHAPTER","Find a direction worth exploring.","Start with what you know—or discover the work you might enjoy."],
@@ -66,6 +67,12 @@ function setStoryStage(stage) {
     evidence:["THE REASONING BEHIND YOUR PLAN","See what your plan is based on.","Follow source excerpts and graph relationships. Unknown requirements stay visible."]
   }[stage];
   if (copy) { $("journey-kicker").textContent=copy[0]; $("journey-title").textContent=copy[1]; $("journey-description").textContent=copy[2]; }
+  if (previousStage && previousStage !== stage && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    const heading = $("journey-title");
+    heading.getAnimations().forEach(animation => animation.cancel());
+    heading.animate([{ opacity: 0, transform: "translateY(7px)" }, { opacity: 1, transform: "translateY(0)" }],
+      { duration: 240, easing: "cubic-bezier(.22,1,.36,1)" });
+  }
   const active=stage==="explore"?"start":stage==="evidence"?"roadmap":stage;
   document.querySelectorAll("[data-story-nav]").forEach(button=>{
     button.classList.toggle("active",button.dataset.storyNav===active);
@@ -398,17 +405,34 @@ $("agent-btn").onclick = () => action("The agent is choosing tools and reviewing
   showStep("evidence"); notify("Agent review complete. Read the structured proposal and evidence before accepting.");
 });
 async function init() {
+  let result;
   try {
-    const result=await api("/api/health");
-    const healthy=!!(result.database?.healthy || result.database?.status==="ok" || result.database?.ok);
-    $("health-text").textContent=healthy?"FalkorDB connected":"Graph needs attention"; $("db-dot").classList.toggle("off",!healthy);
-    const agentEnabled = result.discovery?.agent_enabled === true;
-    $("agent-status").textContent = agentEnabled ? "TinyFish browser Agent enabled · metered fallback" : "TinyFish browser Agent off · Search/Fetch separate";
-    $("agent-status").title = result.discovery?.agent_gate || "This is separate from Groq's preparation agent. Configuration does not prove a live run.";
+    result = await api("/api/health");
+  } catch {
+    $("health-text").textContent = "Server unavailable";
+    $("db-dot").classList.add("off");
+    $("agent-status").textContent = "Browser Agent status unavailable";
+    notify("The app server could not be reached. Refresh the page or check that PathWeave is running.", true);
+    return;
+  }
+  const healthy=!!(result.database?.healthy || result.database?.status==="ok" || result.database?.ok);
+  $("health-text").textContent=healthy?"FalkorDB connected":"Graph not connected"; $("db-dot").classList.toggle("off",!healthy);
+  const agentEnabled = result.discovery?.agent_enabled === true;
+  $("agent-status").textContent = agentEnabled ? "TinyFish browser Agent enabled · metered fallback" : "TinyFish browser Agent off · Search/Fetch separate";
+  $("agent-status").title = result.discovery?.agent_gate || "This is separate from Groq's preparation agent. Configuration does not prove a live run.";
+  if (!healthy) {
+    notify("FalkorDB is not connected. You can explore interests and set search preferences; saved targets and preparation plans need the graph database.", true);
+    updateSelected();
+    return;
+  }
+  try {
     const saved=await api("/api/opportunities"); state.opportunities=saved.opportunities || [];
     const previous=await api("/api/plan/latest");
     if(previous.plan && !busy && !state.plan){ fillProfile(previous.plan.profile); setPlan(previous.plan); if(!state.hunt)notify("Saved preparation plan recovered from FalkorDB."); }
     updateSelected();
-  } catch(e){$("health-text").textContent="Server unavailable";$("db-dot").classList.add("off");$("agent-status").textContent="Browser Agent status unavailable";notify(e.message,true);}
+  } catch {
+    $("health-text").textContent = "Saved data unavailable";
+    notify("The server is running, but saved preparation data could not be loaded. Check the graph connection before building or updating a plan.", true);
+  }
 }
 init();

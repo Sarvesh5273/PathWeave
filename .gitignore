@@ -17,3 +17,4 @@ dist/
 reports/local/
 data/runtime/
 .DS_Store
+/generated-artifacts/

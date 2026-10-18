@@ -1,5 +1,19 @@
 # Decision log
 
+## Replit frontend redesign and palette correction — October 18, 2026
+
+The user authorized a full responsive UI redesign with animations in this workspace
+for later transfer to the working laptop app. The existing vanilla frontend, control
+IDs, APIs and saved data are preserved. New browser checks use synthetic responses;
+they do not establish live provider or graph functionality.
+
+The user explicitly rejected introduced green and pale cool panels. Keep PathWeave's
+cream/orange palette; broad layout redesign authorization is not a request to replace
+the established brand colors. Responsive improvements and animations remain.
+
+The local Docker application remains the user-confirmed working environment.
+Replit database/provider configuration is deferred in favor of demo preparation.
+
 October18layout correction: Sarvesh found the880pxwhole-page shell cramped. Root
 acknowledged overcorrection and restored a consistent1120pxdesktop frame for header,
 content/navigation and footer, with880pxlimits only for detailed forms. Responsive

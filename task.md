@@ -1,5 +1,16 @@
 # Task tracker
 
+October 18 Replit UI checkpoint: user authorized a full frontend redesign,
+animations and responsiveness, then explicitly rejected green/cool accent panels.
+The interface now retains cream/orange with revised typography, five-step navigation,
+responsive forms/cards and reduced-motion-aware transitions. All existing control
+IDs remain. Browser fixture checks passed seven screens at six widths (320–1440px),
+including focus, reduced motion and a truthful disconnected-graph state.
+These are frontend checks, not live provider/graph proof. No backend or saved-data
+changes. This Replit copy still lacks provider keys and laptop FalkorDB access;
+the user reports the laptop app builds plans successfully. Local demo recording
+remains the delivery path; connecting the Replit database was deferred.
+
 Current handoff: docs/project-handoff.md consolidates the intended product, delivered
 v0.7core, latest five-step UI, actual verification scope and remaining work. README
 now has “Planned development” separating unfinished features from delivery obligations.

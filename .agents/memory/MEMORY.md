@@ -1,1 +1,2 @@
 - [Local and Replit environments](environment-boundaries.md) — the working laptop app and imported workspace are separate; confirm which copy supplied evidence.
+- [Brand palette scope](brand-palette.md) — keep cream and orange; layout redesign permission does not imply new brand colors.
