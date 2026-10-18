@@ -1,0 +1,1 @@
+- [Local and Replit environments](environment-boundaries.md) — the working laptop app and imported workspace are separate; confirm which copy supplied evidence.
