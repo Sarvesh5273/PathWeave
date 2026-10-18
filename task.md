@@ -1,5 +1,20 @@
 # Task tracker
 
+October 18 topic-first roadmap: implemented after explicit user approval.
+Authored study tracks supplement sparse source details without claiming an
+employer syllabus. Topics include concepts, practice, resources, completion/undo,
+ratings and shared-budget weekly allocations. Next topic expands; application
+warnings/checks/Groq review remain available but secondary. Saved plans are not
+rewritten; use the rebuild action for a new proposal. Generic program names require
+an explicit technical track when their scope is unclear.
+
+71 focused tests passed, one real-FalkorDB case skipped; 42 responsive stage/width
+checks and browser interaction cases passed with synthetic inputs and actual
+offline planner responses. No live graph/provider write or acceptance verified
+here. No paid calls, dependencies or database migration. New implementation is
+not yet pushed. Next: transfer to the working laptop environment, then record the
+real demo and complete submission; prior delivery blockers still apply.
+
 October 18 laptop-width correction: navbar/footer now span the viewport with
 20–48px inner gutters. Main content and detailed forms remain centered/constrained.
 This supersedes earlier notes requiring the navbar/footer to share the 1120px frame.

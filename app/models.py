@@ -111,6 +111,13 @@ class RoadmapTopic(BaseModel):
     required_by: dict[str, list[str]] = Field(default_factory=dict)
     scheduled: bool = False
     note: str = ""
+    basis: Literal["source_linked", "recommended"] = "source_linked"
+    learn: list[str] = Field(default_factory=list)
+    practice: str = ""
+    done_when: str = ""
+    hours_low: float = 0
+    hours_high: float = 0
+    week_allocations: dict[str, float] = Field(default_factory=dict)
 
 
 class ProfileState(BaseModel):
@@ -134,6 +141,9 @@ class ProfileState(BaseModel):
     completed_task_ids: list[str] = Field(default_factory=list)
     received_events: list[str] = Field(default_factory=list)
     skills: dict[str, str] = Field(default_factory=dict)
+    # Historical API callers retain their source-only contract. The study editor
+    # explicitly requests auto or a chosen track for new topic-first proposals.
+    study_track: Literal["auto", "software", "data", "research", "general", "source_only"] = "source_only"
 
     @field_validator("weekly_pattern", mode="before")
     @classmethod
@@ -214,6 +224,12 @@ class Plan(BaseModel):
     available_hours: float = 0
     weekly_used: dict[str, float] = Field(default_factory=dict)
     roadmap: list[RoadmapTopic] = Field(default_factory=list)
+    study_track: str = "source_only"
+    study_track_reason: str = ""
+    study_hours_low: float = 0
+    study_hours_high: float = 0
+    application_hours_low: float = 0
+    application_hours_high: float = 0
     status: Literal["proposed", "accepted", "stale", "superseded"] = "proposed"
     next_action: str = ""
     warnings: list[str] = Field(default_factory=list)

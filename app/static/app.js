@@ -5,7 +5,7 @@ const safeUrl = value => { try { const url = new URL(value); return ["http:", "h
 const fact = (op, name) => op.facts?.find(f => f.name === name && f.status === "known");
 const dateLabel = value => { if (!value) return "Unknown"; const date = new Date(value); return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }); };
 const deadlineLabel = value => { if (!value) return "Unknown"; const date = new Date(value); return Number.isNaN(date.getTime()) ? "Unknown" : date.toLocaleString("en-IN", {day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",timeZone:"Asia/Kolkata"}) + " IST"; };
-const hours = value => Number.isFinite(Number(value)) ? Number(value).toFixed(1).replace(/\.0$/, "") : "—";
+const hours = value => value === null || value === undefined || value === "" ? "—" : Number.isFinite(Number(value)) ? Number(value).toFixed(1).replace(/\.0$/, "") : "—";
 let busy = false;
 
 function notify(message, error = false) { $("notification").textContent = message; $("notification").className = "notification" + (error ? " error" : ""); }
@@ -101,7 +101,7 @@ function profile() {
   for (let index=0; index<7; index++) if ($("hours-" + index).value !== "") pattern[String(index)] = Number($("hours-" + index).value);
   const value = {id: "unassigned", synthetic: false, country: text("profile-country"), degree: text("profile-degree"),
     field: text("profile-field"), year: number("profile-year"), total_years: number("profile-total-years"),
-    institution_type: text("profile-institution"), weekly_hours: Number($("weekly-hours").value),
+    institution_type: text("profile-institution"), study_track: $("study-track").value || "auto", weekly_hours: Number($("weekly-hours").value),
     start_date: $("start-date").value, horizon_weeks: Number($("horizon-weeks").value),
     exam_weeks: [...state.examWeeks], holidays: [...state.holidays], weekly_pattern: pattern,
     skill_ratings: {...state.ratings},
@@ -112,10 +112,11 @@ function profile() {
 }
 function fillProfile(value = {}) {
   for (const [id, field] of [["profile-country","country"],["profile-degree","degree"],["profile-field","field"],
-    ["profile-year","year"],["profile-total-years","total_years"],["profile-institution","institution_type"],
+     ["profile-year","year"],["profile-total-years","total_years"],["profile-institution","institution_type"],
     ["weekly-hours","weekly_hours"],["start-date","start_date"],["horizon-weeks","horizon_weeks"]]) {
     if (value[field] !== undefined && value[field] !== null) $(id).value = value[field];
   }
+  $("study-track").value = ["auto","software","data","research","general","source_only"].includes(value.study_track) ? value.study_track : "auto";
   state.examWeeks = [...new Set(value.exam_weeks || [])].sort();
   state.holidays = [...new Set(value.holidays || [])].sort();
   state.ratings = {...(value.skill_ratings || {})};
@@ -235,14 +236,56 @@ function weekCapacity(profileValue, week) {
 }
 
 function renderRoadmap(plan) {
-  const roadmap = plan.roadmap || [];
-  $("roadmap-note").textContent = roadmap.length ? "Prerequisites come first. Your levels are self-reported and only change the suggested start point—not the sourced requirements." : "No reviewed learning topics were found in the selected sources yet. Unextracted or unsupported topics stay unknown.";
-  if (!roadmap.length) { $("roadmap-list").innerHTML = '<div class="empty-state roadmap-empty"><p>The preparation tasks remain available. A topic roadmap appears when reviewed skills are extracted from a selected source.</p></div>'; return; }
+  const roadmap = Array.isArray(plan.roadmap) ? plan.roadmap : [];
+  const trackNames = {auto:"Suggested track",software:"Software engineering",data:"Data science",research:"Research",general:"General preparation",source_only:"Source-linked topics only"};
+  $("study-track-label").textContent = (trackNames[plan.study_track || plan.profile?.study_track] || "Suggested track").toUpperCase();
+  $("roadmap-note").textContent = (roadmap.length
+    ? "One topic at a time, with practice and a stopping point. Source-linked topics are not a source-backed syllabus; recommended guidance is not an employer requirement or a guarantee."
+    : "This plan has no topic guidance. Rebuild when you’re ready; the saved plan will not change until you choose to build a new proposal.")
+    + (plan.study_track_reason ? " " + plan.study_track_reason : "");
+  const legacyRoadmap = roadmap.length > 0 && (!plan.study_track || roadmap.some(entry =>
+    !["source_linked","recommended"].includes(entry.basis) ||
+    !Array.isArray(entry.learn) || !entry.learn.length ||
+    typeof entry.practice !== "string" || !entry.practice.trim() ||
+    typeof entry.done_when !== "string" || !entry.done_when.trim()
+  ));
+  if (!roadmap.length || legacyRoadmap) {
+    $("roadmap-list").innerHTML = '<div class="empty-state roadmap-empty"><h3>No study topics in this plan yet.</h3><p>Older plans are kept as they are. Build a new proposal to get topic-first guidance; no topics are invented for this view.</p><button class="primary" type="button" data-rebuild-plan>Build a new topic roadmap <span aria-hidden="true">→</span></button></div>';
+    $("roadmap-list").querySelector("[data-rebuild-plan]").onclick = () => {
+      $("prep-settings").open = true;
+      if ($("study-track").value === "source_only") $("study-track").value = "auto";
+      $("plan-btn").click();
+    };
+    return;
+  }
   const ratingOptions = [["","Not rated"],["comfortable","Comfortable"],["review","Needs review"],["new","New to me"],["unsure","Not sure"]];
-  $("roadmap-list").innerHTML = roadmap.map(entry => {
-    const required = Object.entries(entry.required_by || {}).map(([target,names]) => (state.opportunities.find(item => item.id === target)?.program || target) + " · " + names.map(name => name.replaceAll("_"," ")).join(", "));
-    return '<article class="roadmap-item ' + (entry.start_here ? "start" : "") + (entry.task_status === "completed" ? " done" : "") + '"><div class="roadmap-order">' + String(entry.order).padStart(2,"0") + '</div><div class="roadmap-main"><div class="roadmap-title"><h4>' + esc(entry.title) + '</h4><span class="badge">' + esc(entry.family || "Foundation") + '</span>' + (entry.start_here ? '<span class="badge start-badge">START HERE</span>' : '') + (entry.task_status ? '<span class="badge">' + esc(entry.task_status.toUpperCase()) + '</span>' : '') + '</div>' + (entry.prerequisites?.length ? '<p class="roadmap-prereqs">Builds after: ' + entry.prerequisites.map(value => esc((roadmap.find(item => item.key === value)?.title) || value.replaceAll("_"," "))).join(", ") + '</p>' : '') + '<div class="roadmap-actions"><label>Your level<select data-rating="' + esc(entry.key) + '">' + ratingOptions.map(([value,label]) => '<option value="' + value + '" ' + (entry.rating === value ? "selected" : "") + '>' + label + '</option>').join("") + '</select></label><div class="roadmap-resources">' + (entry.resources || []).map(resource => '<a class="source-link" href="' + esc(safeUrl(resource.url)) + '" target="_blank" rel="noopener noreferrer">' + esc(resource.title) + ' ↗</a>').join("") + '</div></div>' + (required.length ? '<p class="roadmap-required">Connected source facts: ' + esc(required.join("; ")) + '</p>' : '<p class="roadmap-required">Prerequisite guidance for a connected required topic.</p>') + (entry.note ? '<p class="roadmap-item-note">' + esc(entry.note) + '</p>' : '') + '</div></article>';
+  const tasksById = new Map((plan.tasks || []).filter(task => task.task_id).map(task => [task.task_id, task]));
+  const selectedTopic = roadmap.find(entry => entry.start_here === true);
+  $("roadmap-list").innerHTML = roadmap.map((entry, index) => {
+    const candidateIds = [...(Array.isArray(entry.task_ids) ? entry.task_ids : []), ...(entry.key ? ["study/" + entry.key + "/v1"] : [])];
+    const topicTasks = [...new Set(candidateIds.filter(id => typeof id === "string" && tasksById.has(id)))].map(id => tasksById.get(id));
+    const topicTaskIds = topicTasks.map(task => task.task_id);
+    const required = Object.entries(entry.required_by || {}).map(([target,names]) => (state.opportunities.find(item => item.id === target)?.program || target) + " · " + (Array.isArray(names) ? names : [names]).map(name => String(name).replaceAll("_"," ")).join(", "));
+    const completed = topicTasks.length > 0 ? topicTasks.every(task => task.status === "completed") : entry.task_status === "completed";
+    const status = completed ? "completed" : topicTasks.find(task => task.status && task.status !== "completed")?.status || entry.task_status || "not started";
+    const allocation = topicTasks.reduce((all, task) => {
+      for (const [week, value] of Object.entries(task.week_allocations || {})) all[week] = Number(all[week] || 0) + Number(value || 0);
+      return all;
+    }, {});
+    if (!Object.keys(allocation).length) Object.assign(allocation, entry.week_allocations || {});
+    const allocationText = Object.entries(allocation).filter(([, value]) => Number(value) > 0).map(([week, value]) => dateLabel(week) + " · " + hours(value) + "h").join(" / ");
+    const links = (Array.isArray(entry.resources) ? entry.resources : []).map(resource => {
+      const url = safeUrl(resource?.url);
+      return url === "#" ? "" : '<a class="source-link" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(resource.title || "Open learning resource") + ' ↗</a>';
+    }).join("");
+    const learn = Array.isArray(entry.learn) ? entry.learn.filter(Boolean) : [];
+    const title = entry.title || "Untitled topic";
+    const completionLabel = completed ? "Undo completion: " + title + " topic practice" : "Mark complete: " + title + " topic practice";
+    const checkbox = topicTaskIds.length ? '<button type="button" class="topic-done ' + (completed ? "done" : "") + '" data-topic-complete="' + esc(JSON.stringify(topicTaskIds)) + '" aria-label="' + esc(completionLabel) + '" aria-pressed="' + completed + '">' + (completed ? "Mark not done" : "Mark topic complete") + '</button>' : '<span class="topic-status">Completion task unavailable in this plan</span>';
+    const selected = entry === selectedTopic;
+    return '<details class="roadmap-item ' + (selected ? "start" : "") + (completed ? " done" : "") + '"' + (selected ? " open" : "") + '><summary class="roadmap-summary"><span class="roadmap-order">' + String(entry.order || index + 1).padStart(2,"0") + '</span><span class="roadmap-summary-main"><span class="roadmap-title"><span class="roadmap-topic-name">' + esc(title) + '</span><span class="badge">' + esc(entry.family || "Topic") + '</span><span class="badge basis-badge">' + (entry.basis === "source_linked" ? "SOURCE-LINKED" : "RECOMMENDED") + '</span>' + (selected ? '<span class="badge start-badge">STUDY NEXT</span>' : '') + '<span class="badge">' + esc(String(status).replaceAll("_"," ").toUpperCase()) + '</span></span><span class="topic-disclosure-hint">' + (selected ? "Selected next topic · details open" : "Open topic details") + '</span></span></summary><div class="roadmap-main">' + (entry.prerequisites?.length ? '<p class="roadmap-prereqs">Builds after: ' + entry.prerequisites.map(value => esc((roadmap.find(item => item.key === value)?.title) || String(value).replaceAll("_"," "))).join(", ") + '</p>' : '') + '<div class="topic-guidance">' + (learn.length ? '<div><strong>Learn</strong><ul>' + learn.map(item => '<li>' + esc(item) + '</li>').join("") + '</ul></div>' : '') + (entry.practice ? '<div><strong>Practice</strong><p>' + esc(entry.practice) + '</p></div>' : '') + (entry.done_when ? '<div><strong>You’re done when</strong><p>' + esc(entry.done_when) + '</p></div>' : '') + '</div><div class="topic-footer"><span class="topic-effort">' + (Number.isFinite(Number(entry.hours_low)) && Number.isFinite(Number(entry.hours_high)) ? esc(hours(entry.hours_low) + "–" + hours(entry.hours_high) + " hours") : "Effort estimate unavailable") + (allocationText ? ' · Scheduled: ' + esc(allocationText) : topicTasks.length ? ' · Not scheduled in a specific week' : "") + '</span><label class="topic-rating">Your level<select data-rating="' + esc(entry.key) + '">' + ratingOptions.map(([value,label]) => '<option value="' + esc(value) + '" ' + (entry.rating === value ? "selected" : "") + '>' + esc(label) + '</option>').join("") + '</select></label>' + checkbox + '</div>' + (links ? '<div class="roadmap-resources">' + links + '</div>' : '<p class="roadmap-required">No learning links are attached to this topic.</p>') + (entry.basis === "source_linked" ? '<p class="roadmap-required">Connected to selected source details; not a complete source-backed syllabus.</p>' : '<p class="roadmap-required">Recommended learning guidance, not an employer requirement or a guarantee.</p>') + (required.length ? '<p class="roadmap-required">Connected source facts: ' + esc(required.join("; ")) + '</p>' : '') + (entry.note ? '<p class="roadmap-item-note">' + esc(entry.note) + '</p>' : '') + '</div></details>';
   }).join("");
+  $("roadmap-list").querySelectorAll("[data-topic-complete]").forEach(button => button.onclick = () => toggleCompletion(JSON.parse(button.dataset.topicComplete), state.mode));
   $("roadmap-list").querySelectorAll("[data-rating]").forEach(select => select.onchange = () => action("Saving your self-reported topic level…", async () => {
     if (select.value) state.ratings[select.dataset.rating] = select.value; else delete state.ratings[select.dataset.rating];
     setPlan(await api("/api/plan", {selected_ids: state.selected, profile: profile()}));
@@ -263,75 +306,126 @@ $("refresh-btn").onclick = () => action("Refreshing the selected source and chec
   notify(result.errors?.length ? "Source refresh has gaps. Retained evidence is now marked uncertain: " + result.errors.join(" ") : changed ? "Source facts changed. Review a new preparation proposal; earlier evidence is preserved." : "Source refreshed. No semantic requirement change was found.", !!result.errors?.length);
 });
 
+async function toggleCompletion(taskId, mode = state.mode) {
+  return action("Updating your study progress…", async () => {
+    if (mode === "simulation") { notify("Update study progress in the main plan. Simulation is a separate review scenario."); return; }
+    const updated = profile();
+    const ids = Array.isArray(taskId) ? taskId : [taskId];
+    const allComplete = ids.length > 0 && ids.every(id => updated.completed_task_ids.includes(id));
+    updated.completed_task_ids = allComplete
+      ? updated.completed_task_ids.filter(id => !ids.includes(id))
+      : [...new Set([...updated.completed_task_ids, ...ids])];
+    setPlan(await api("/api/plan", {selected_ids: state.selected, profile: updated}));
+    const topicTask = Array.isArray(taskId) || ids.some(id => id.startsWith("study/"));
+    notify(!allComplete
+      ? (topicTask ? "Topic marked complete. You can undo this any time." : "Preparation work marked complete. You can undo this any time.")
+      : (topicTask ? "Topic completion undone." : "Preparation completion undone."));
+  });
+}
+
 function setPlan(plan, mode = "official") {
   state.plan = plan; state.mode = mode;
-  state.ratings = {...(plan.profile?.skill_ratings || {})};
+  const tasks = Array.isArray(plan.tasks) ? plan.tasks : [];
+  const targets = Array.isArray(plan.targets) ? plan.targets : [];
+  const profileData = plan.profile || {};
+  state.ratings = {...(profileData.skill_ratings || {})};
   state.selected = plan.selected_ids || state.selected;
+  if (["auto","software","data","research","general","source_only"].includes(profileData.study_track)) $("study-track").value = profileData.study_track;
   $("plan-empty").classList.add("hidden"); $("plan-content").classList.remove("hidden");
-  $("next-action-text").textContent = plan.next_action || "Review your target requirements and resolve the unknowns.";
-  $("plan-mode-note").textContent = mode === "simulation" ? "SIMULATION · Separate graph. Changed policy is illustrative; official source facts remain unchanged." : "Your profile and progress are self-reported · Requirements link to source evidence.";
-  if (state.enrichmentWarnings?.length || plan.warnings?.some(w => /source.*review is incomplete/i.test(w))) $("plan-mode-note").textContent += " · Some source details need review.";
+  $("next-action-text").textContent = plan.next_action || "Choose a topic and start with its practice exercise.";
+  $("plan-mode-note").textContent = mode === "simulation" ? "SIMULATION · Separate graph. Changed policy is illustrative; official source facts remain unchanged." : "Your profile and progress are self-reported. Studying can continue while an application portal is unavailable.";
+  if (state.enrichmentWarnings?.length || plan.warnings?.some(w => /source.*review is incomplete/i.test(w))) $("plan-mode-note").textContent += " Some source details need review.";
   $("metric-effort").textContent = hours(plan.total_hours_low) + "–" + hours(plan.total_hours_high) + " h";
   $("metric-capacity").textContent = hours(plan.available_hours) + " h";
-  const shared = plan.tasks.filter(t => t.category === "Shared" && t.status !== "completed");
-  $("metric-shared").textContent = hours(shared.reduce((sum,t) => sum + t.hours_high, 0)) + " h";
-  $("metric-state").textContent = plan.status.charAt(0).toUpperCase() + plan.status.slice(1);
-  $("metric-version").textContent = "Version " + plan.id.slice(0,8);
+  const shared = tasks.filter(task => task.category === "Shared" && task.status !== "completed");
+  $("metric-shared").textContent = hours(shared.reduce((sum, task) => sum + Number(task.hours_high || 0), 0)) + " h";
+  $("metric-state").textContent = String(plan.status || "proposed").charAt(0).toUpperCase() + String(plan.status || "proposed").slice(1);
+  $("metric-version").textContent = plan.id ? "Version " + String(plan.id).slice(0,8) : "New proposal";
   $("accept-btn").disabled = plan.status !== "proposed";
-  $("plan-warnings").innerHTML = [...(state.enrichmentWarnings || []),...(plan.warnings || [])].map(w => '<div class="warning">' + esc(w) + '</div>').join("");
-  const weeks = Object.keys(plan.weekly_used || {});
-  if (!weeks.length) {
-    const start = new Date(plan.profile.start_date + "T12:00:00Z");
-    for (let i=0;i<plan.profile.horizon_weeks;i++) { const date = new Date(start); date.setUTCDate(date.getUTCDate()+i*7); weeks.push(date.toISOString().slice(0,10)); }
+  const warnings = [...(state.enrichmentWarnings || []), ...(plan.warnings || [])];
+  $("plan-warnings").innerHTML = warnings.map(warning => '<div class="warning">' + esc(warning) + '</div>').join("");
+  $("budget-summary").textContent = "Study guidance: " + hours(plan.study_hours_low) + "–" + hours(plan.study_hours_high) + " h · Application and other work: " + hours(plan.application_hours_low) + "–" + hours(plan.application_hours_high) + " h. These share one weekly budget.";
+
+  const weeklyUsed = plan.weekly_used || {};
+  const weeksSet = new Set(Object.keys(weeklyUsed));
+  for (const task of tasks) for (const week of Object.keys(task.week_allocations || {})) weeksSet.add(week);
+  let weeks = [...weeksSet].sort();
+  if (!weeks.length && profileData.start_date && Number(profileData.horizon_weeks) > 0) {
+    const start = new Date(profileData.start_date + "T12:00:00Z");
+    if (!Number.isNaN(start.getTime())) for (let i=0; i<Number(profileData.horizon_weeks); i++) {
+      const date = new Date(start); date.setUTCDate(date.getUTCDate() + i * 7); weeks.push(date.toISOString().slice(0,10));
+    }
   }
-  $("timeline").innerHTML = weeks.map(week => {
-    const cap = weekCapacity(plan.profile, week), used = Number(plan.weekly_used?.[week] || 0), protectedWeek = cap === 0;
-    return '<div class="week-row ' + (protectedWeek ? "exam" : "") + '"><div class="week-title">' + esc(dateLabel(week)) + '<small>' + (protectedWeek ? "PROTECTED / UNAVAILABLE" : "PREPARATION WEEK") + '</small></div><div class="week-bar"><span style="width:' + (cap ? Math.min(100,used/cap*100) : 0) + '%"></span></div><div class="week-hours">' + hours(used) + " / " + hours(cap) + 'h</div></div>';
-  }).join("");
+  $("timeline").innerHTML = weeks.length ? weeks.map(week => {
+    const cap = weekCapacity(profileData, week);
+    const used = Number(weeklyUsed[week] || 0);
+    const protectedWeek = cap === 0;
+    const activities = tasks.map(task => ({task, value: Number(task.week_allocations?.[week] || 0)})).filter(item => item.value > 0);
+    const activityMarkup = activities.length
+      ? '<ul class="week-activities">' + activities.map(({task, value}) => '<li><span>' + esc(task.title || "Preparation activity") + '</span><b>' + hours(value) + 'h</b></li>').join("") + '</ul>'
+      : used > 0 ? '<p class="week-unmapped">Hours are allocated this week, but the plan did not provide activity-level detail.</p>' : '<p class="week-unmapped">No activity scheduled for this week.</p>';
+    return '<article class="week-row ' + (protectedWeek ? "exam" : "") + '"><div class="week-title">' + esc(dateLabel(week)) + '<small>' + (protectedWeek ? "PROTECTED / UNAVAILABLE" : "WEEKLY WORK") + '</small></div><div class="week-detail">' + activityMarkup + '</div><div class="week-hours">' + hours(used) + ' / ' + hours(cap) + 'h</div></article>';
+  }).join("") : '<div class="week-unavailable">No weekly schedule was returned for this plan. Work is not scheduled rather than assumed.</div>';
+
+  const appBlockers = tasks.filter(task => task.category !== "Study" && task.status !== "completed" && (task.waiting_for || task.status === "waiting" || task.status === "blocked"));
+  const requiredHigh = tasks.filter(task => task.status !== "completed").reduce((sum, task) => sum + Math.max(0, Number(task.hours_high || 0)), 0);
+  const availableCapacity = Number(plan.available_hours);
+  const capacityGap = Number.isFinite(availableCapacity) ? Math.max(0, requiredHigh - availableCapacity) : 0;
+  $("priority-blockers").innerHTML = (appBlockers.length
+    ? '<div class="blocker-note application-blocker"><strong>' + appBlockers.length + ' application item' + (appBlockers.length === 1 ? "" : "s") + ' may need review.</strong><div class="blocker-actions"><button type="button" class="text-btn" data-open-detail="application-work">Open tasks and reasons</button><button type="button" class="text-btn" data-open-detail="target-check-details">Open target checks</button></div><small>These affect applications only. They do not prevent you from studying.</small></div>'
+    : "") + (capacityGap > 0
+    ? '<div class="capacity-notice" role="status">Upper-bound work exceeds available capacity by ' + esc(hours(capacityGap)) + ' hours. Make more time or extend the horizon; studying can still happen when it fits.</div>'
+    : "");
+  $("priority-blockers").querySelectorAll("[data-open-detail]").forEach(button => button.onclick = () => {
+    const details = $(button.dataset.openDetail);
+    if (details) {
+      details.open = true;
+      details.scrollIntoView({block:"nearest", behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
+    }
+  });
+
   renderRoadmap(plan);
-  $("task-list").innerHTML = plan.tasks.map(t => '<article class="task"><button class="task-check ' + (t.status === "completed" ? "done" : "") + '" data-complete="' + esc(t.task_id) + '" ' + (t.waiting_for || t.status === "waiting" || t.status === "blocked" ? "disabled" : "") + ' aria-label="Toggle my preparation completion">' + (t.status === "completed" ? "✓" : "") + '</button><div class="task-main"><h4>' + esc(t.title) + '</h4><div class="task-meta"><span class="badge ' + (t.status === "waiting" || t.status === "blocked" ? "closed" : "") + '">' + esc(t.status.toUpperCase()) + '</span><span>' + esc(t.category) + '</span><span>' + esc(t.target_ids.length > 1 ? "Supports " + t.target_ids.length + " targets" : "Program-specific work") + '</span></div>' + (t.reason ? '<p>' + esc(t.reason) + '</p>' : "") + (t.waiting_for ? '<p>' + (t.status === "completed" ? "Receipt marked by you; not independently verified." : "External confirmation is required; estimated work time cannot satisfy it.") + '</p>' : "") + '</div><span class="task-hours">' + hours(t.hours_high) + 'h</span></article>').join("");
-  $("task-list").querySelectorAll("[data-complete]").forEach(b => b.onclick = () => action("Updating your completion state…", async () => {
-    const updated = profile();
-    const id = b.dataset.complete;
-    updated.completed_task_ids = updated.completed_task_ids.includes(id) ? updated.completed_task_ids.filter(x => x !== id) : [...updated.completed_task_ids,id];
-    if (mode === "simulation") { notify("Complete preparation in the main plan. Simulation is a separate review scenario."); return; }
-    setPlan(await api("/api/plan", {selected_ids: state.selected,profile: updated}));
-    notify("Preparation state updated in a new proposal.");
-  }));
-  for (const [index, task] of plan.tasks.entries()) $("task-list").children[index].dataset.taskCategory = task.category;
-  const taskCategories = ["All", ...["Shared", "Research", "Company"].filter(category => plan.tasks.some(task => task.category === category))];
+  $("task-list").innerHTML = tasks.length ? tasks.map(task => {
+    const completed = task.status === "completed";
+    const blocked = !completed && (task.waiting_for || task.status === "waiting" || task.status === "blocked");
+    const targetIds = Array.isArray(task.target_ids) ? task.target_ids : [];
+    const allocationTotal = Object.values(task.week_allocations || {}).reduce((sum,value) => sum + Number(value || 0),0);
+    const taskTitle = task.title || "Preparation work";
+    return '<article class="task"><button class="task-check ' + (completed ? "done" : "") + '" data-complete="' + esc(task.task_id) + '" ' + (blocked ? "disabled" : "") + ' aria-label="' + esc(completed ? "Undo completion of " + taskTitle : "Mark " + taskTitle + " complete") + '" aria-pressed="' + completed + '">' + (completed ? "✓" : "") + '</button><div class="task-main"><h4>' + esc(taskTitle) + '</h4><div class="task-meta"><span class="badge ' + (blocked ? "closed" : "") + '">' + esc(String(task.status || "planned").toUpperCase()) + '</span><span>' + esc(task.category || "Preparation") + '</span><span>' + esc(targetIds.length > 1 ? "Supports " + targetIds.length + " targets" : "Target-specific work") + '</span></div>' + (task.reason ? '<p>' + esc(task.reason) + '</p>' : "") + (task.waiting_for ? '<p>' + (completed ? "Receipt marked by you; not independently verified." : "External confirmation is required; estimated work time cannot satisfy it.") + '</p>' : "") + (allocationTotal < Number(task.hours_low || 0) && !completed ? '<p class="task-unscheduled">Not fully scheduled in the weekly plan.</p>' : "") + '</div><span class="task-hours">' + hours(task.hours_low) + '–' + hours(task.hours_high) + 'h</span></article>';
+  }).join("") : '<div class="empty-state roadmap-empty"><p>No preparation tasks were returned. Nothing has been invented for this plan.</p></div>';
+  $("task-list").querySelectorAll("[data-complete]").forEach(button => button.onclick = () => toggleCompletion(button.dataset.complete, mode));
+  for (const [index, task] of tasks.entries()) if ($("task-list").children[index]) $("task-list").children[index].dataset.taskCategory = task.category || "Preparation";
+  const taskCategories = ["All", ...["Study","Shared","Research","Company"].filter(category => tasks.some(task => task.category === category))];
   if (!taskCategories.includes(state.taskCategory)) state.taskCategory = "All";
   $("task-filters").innerHTML = taskCategories.map(category => {
-    const count = plan.tasks.filter(task => category === "All" || task.category === category).length;
-    const label = category === "All" ? "All work" : category === "Shared" ? "Shared foundations" : category;
-    return '<button class="filter" data-task-filter="' + category + '" aria-pressed="' + (category === state.taskCategory) + '">' + esc(label) + ' <span>' + count + '</span></button>';
+    const count = tasks.filter(task => category === "All" || task.category === category).length;
+    const label = category === "All" ? "All work" : category === "Study" ? "Study topics" : category === "Shared" ? "Shared foundations" : category;
+    return '<button class="filter" data-task-filter="' + esc(category) + '" aria-pressed="' + (category === state.taskCategory) + '">' + esc(label) + ' <span>' + count + '</span></button>';
   }).join("");
-  $("task-filters").querySelectorAll("button").forEach(button => button.onclick = () => {
-    state.taskCategory = button.dataset.taskFilter;
-    applyTaskFilter();
-  });
+  $("task-filters").querySelectorAll("button").forEach(button => button.onclick = () => { state.taskCategory = button.dataset.taskFilter; applyTaskFilter(); });
   applyTaskFilter();
-  for (const [index, task] of plan.tasks.entries()) {
+  for (const [index, task] of tasks.entries()) {
     if (!task.waiting_for) continue;
     const container = $("task-list").children[index]?.querySelector(".task-main");
     if (!container) continue;
-    const observed = (plan.profile.received_events || []).includes(task.waiting_for);
-    const button = document.createElement("button");
-    button.className = "receipt-btn secondary";
-    button.textContent = observed ? "Undo my receipt confirmation" : "I confirm this was received";
-    button.disabled = mode === "simulation";
-    button.onclick = () => action("Saving your receipt confirmation…", async () => {
+    const observed = (profileData.received_events || []).includes(task.waiting_for);
+    const receipt = document.createElement("button");
+    receipt.className = "receipt-btn secondary";
+    receipt.textContent = observed ? "Undo my receipt confirmation" : "I confirm this was received";
+    receipt.disabled = mode === "simulation";
+    receipt.onclick = () => action("Saving your receipt confirmation…", async () => {
       const updated = profile();
-      updated.received_events = observed ? updated.received_events.filter(e => e !== task.waiting_for) : [...updated.received_events, task.waiting_for];
+      updated.received_events = observed ? updated.received_events.filter(event => event !== task.waiting_for) : [...updated.received_events, task.waiting_for];
       setPlan(await api("/api/plan", {selected_ids: state.selected, profile: updated}));
       notify("Your receipt confirmation was saved. Delivery has not been checked independently.");
     });
-    container.appendChild(button);
+    container.appendChild(receipt);
   }
-  $("target-checks").innerHTML = plan.targets.map(t => {
-    const op = state.opportunities.find(o => o.id === t.target_id);
-    return '<div class="check-card"><h4>' + esc(op?.program || t.target_id) + '</h4><span class="badge ' + (t.schedule_status === "infeasible" || t.eligibility === "not_eligible" ? "closed" : "unknown") + '">' + esc(t.schedule_status.replaceAll("_"," ").toUpperCase()) + '</span><p>' + esc((t.reasons || []).join(" ")) + '</p>' + (t.criteria || []).slice(0,5).map(c => '<div class="criteria-item"><strong>' + esc(c.status.replaceAll("_"," ")) + '</strong><span>' + esc(c.explanation) + '</span></div>').join("") + '</div>';
-  }).join("");
+  $("target-checks").innerHTML = targets.length ? targets.map(target => {
+    const op = state.opportunities.find(item => item.id === target.target_id);
+    const scheduleStatus = String(target.schedule_status || "unknown");
+    return '<div class="check-card"><h4>' + esc(op?.program || target.target_id) + '</h4><span class="badge ' + (scheduleStatus === "infeasible" || target.eligibility === "not_eligible" ? "closed" : "unknown") + '">' + esc(scheduleStatus.replaceAll("_"," ").toUpperCase()) + '</span><p>' + esc((target.reasons || []).join(" ")) + '</p>' + (target.criteria || []).slice(0,5).map(criterion => '<div class="criteria-item"><strong>' + esc(String(criterion.status || "unknown").replaceAll("_"," ")) + '</strong><span>' + esc(criterion.explanation) + '</span></div>').join("") + '</div>';
+  }).join("") : '<p class="muted">No target checks were returned for this plan.</p>';
   renderEvidence(); renderCards(); updateSelected();
 }
 function applyTaskFilter() {
@@ -379,7 +473,13 @@ $("plan-btn").onclick = () => action("Traversing target requirements and shared 
   if (state.useHuntSelection) await prepareSelectedListings();
   state.impact = null; setPlan(await api("/api/plan",{selected_ids:state.selected,profile:profile()}));
   $("prep-settings").open = false;
-  showStep("plan"); notify("Preparation proposal built from graph context. Review uncertain and waiting states before accepting.");
+  showStep("plan");
+  if (state.plan?.roadmap?.length && state.plan.study_track !== "source_only") {
+    $("plan-content").scrollIntoView({block:"start", behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
+    notify("Your study roadmap is ready. Start with the highlighted topic; application checks are separate.");
+  } else {
+    notify("Source-linked preparation proposal built. Review application checks before saving.");
+  }
 });
 $("setup-plan-btn").onclick = () => {
   if (busy) return;

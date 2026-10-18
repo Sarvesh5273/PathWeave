@@ -1,5 +1,31 @@
 # Decision log
 
+## Topic-first study guidance — October 18, 2026
+
+The user reviewed a laptop-generated verification-only plan and explicitly
+authorized replacing that experience with a topic-first learning roadmap.
+Recommended Software, Data & ML, Research and general interview tracks supplement
+source-linked topics without fabricating requirements, facts or evidence edges.
+Ambiguous programs default to general guidance rather than an invented coding
+syllabus; users can choose their intended track explicitly.
+
+Source/application tasks keep their original assessment and allocation. Authored
+practice uses residual daily capacity in the same budget; recommendations cannot
+change eligibility or certify application readiness. Comfortable ratings shorten
+only recommended review, never source-required work. Completion remains a
+self-report. Existing immutable plans stay unchanged; rebuilding creates a new
+proposal. Older API clients default to source-only, while the UI requests a track.
+
+Study next, topic-level concepts/practice/resources and named weekly activities
+are primary. Only the next topic expands initially. Detailed warnings, target
+checks and Groq review remain accessible through collapsed supporting sections.
+No new paid calls, dependencies, migrations or provider hunts.
+
+Verification: 71 focused planner/model tests passed, one unavailable-FalkorDB test
+skipped; 42 browser viewport/stage checks plus completion/undo, source task IDs,
+old-plan rebuilding, zero capacity and output escaping passed using real offline
+planner responses and synthetic inputs. Live graph save/accept was not verified.
+
 ## Full-width navbar and footer — October 18, 2026
 
 The user identified excessive side margins in laptop screenshots. Navbar/footer

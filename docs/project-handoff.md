@@ -104,6 +104,16 @@ The graph retrieves shared topics and prerequisite closure. Resource links come 
 an authored starter catalog in `app/topics.py`, not automatically copied curricula.
 Unknown or unsupported topics remain verification work.
 
+October 18 topic-first update: the web editor can now request an authored study
+track in addition to source-linked topics. Software, Data & ML, Research and
+general interview preparation provide concrete concepts, practice, resources and
+completion criteria. Ambiguous role context yields general guidance, not invented
+technical requirements. Recommended tasks use only residual daily capacity after
+source/application work; source facts and assessments remain unchanged. Old saved
+plans are immutable and have an explicit rebuild path. Historical API requests
+without `study_track` remain source-only. Live save/accept of the new shape was not
+verified in Replit because FalkorDB remains disconnected.
+
 Editable topic levels are comfortable, needs review, new to me and unsure. These are
 self-reports that change suggested starting points; they do not certify knowledge or
 remove sourced obligations. Application eligibility and skill readiness are not

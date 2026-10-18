@@ -1,5 +1,20 @@
 # Build notes and contribution journal
 
+## October 18 — topic-first roadmap correction
+
+The user supplied actual laptop plan text and screenshots, identified the missing
+topic-wise study plan and information overload, and approved the proposed focused
+planner/UI implementation. Replit Agent implemented the authored guidance and
+tests; a design helper implemented the frontend hierarchy, followed by integration
+corrections. No claim is made that the user has reviewed this resulting version.
+
+71 focused tests and 42 browser stage/viewport checks passed, plus browser
+completion/undo, legacy rebuild, capacity and output-encoding cases. Browser inputs
+were synthetic and responses came from the actual offline planner. One real-graph
+test skipped because storage was unavailable. No paid model/provider call or
+graph write occurred. Learning resources are curated starting points, not a new
+research result or employer-endorsed curriculum.
+
 ## October18 — five-step UX redesign
 
 Sarvesh supplied screenshots, rejected the overall hierarchy and suggested one-step

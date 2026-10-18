@@ -559,6 +559,9 @@ def build_plan(
         profile.completed_task_ids if completion_ids_supplied or not old_tasks
         else previous.profile.completed_task_ids
     )
+    # Recommended study completion is validated separately, never against
+    # source recipes or employer requirements.
+    completion_claims = [value for value in completion_claims if not value.startswith("study/")]
     explicitly_completed = set(completion_claims)
     observed_events = set(profile.received_events)
     plan_tasks = {}
@@ -813,7 +816,7 @@ def build_plan(
             "Removed completion claims that are outside or incompatible with the current recipe, "
             "unverified, or require an observed external event: " + ", ".join(sorted(revoked_claims)) + "."
         )
-    return Plan(
+    plan = Plan(
         id=f"plan-{uuid4().hex}", selected_ids=selected_ids, profile=normalized_profile,
         targets=[assessments[key] for key in selected_ids], tasks=[plan_tasks[task_id] for task_id in order],
         evidence=[item.model_copy(deep=True) for item in context.evidence], fact_versions=fact_versions,
@@ -824,3 +827,5 @@ def build_plan(
         affected_target_ids=_unique(impact.affected_target_ids) if impact else [],
         affected_task_ids=_unique(impact.affected_task_ids) if impact else [],
     )
+    from app.study import add_study_guidance
+    return add_study_guidance(plan, context, profile, slots, finished, previous)

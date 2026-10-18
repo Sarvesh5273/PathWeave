@@ -2,6 +2,25 @@
 
 **Discover internships. Build your preparation path.**
 
+### Topic-first study roadmap
+
+New roadmap proposals can include Software, Data & ML, Research, or general
+interview preparation. Choose a track under your preparation settings. Each topic
+shows concepts to learn, practice, learning resources, a completion criterion, and
+its suggested weekly allocation. Only the next topic opens initially.
+
+Recommended curriculum is clearly separated from source-linked topics and
+application checks; it is not an employer syllabus or a promise of interview
+success. Auto uses available role/topic context and falls back to general
+interview preparation when the technical scope is unclear. For a generic program
+name, choose Software explicitly if coding interviews are your goal.
+
+Study practice and application work share the same availability budget, with
+exam weeks and holidays protected. Existing saved plans are not rewritten:
+rebuild to create a new topic-first proposal. Historical API callers that omit
+`study_track` retain source-only behavior; the web editor explicitly chooses a
+track. Calendar import, quizzes and verified skill assessment remain out of scope.
+
 Built by team **Just_Chill** for Graph Hacks: Context for AI Agents.
 
 **Latest authored v0.7.0:** explore interests through12illustrative company/research projects,

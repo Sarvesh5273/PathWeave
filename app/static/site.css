@@ -852,3 +852,112 @@ footer p { max-width: 300px; }
   footer { flex-direction: column; align-items: flex-start; gap: 12px; padding-top: 22px; padding-bottom: 24px; }
   footer p { width: auto; order: initial; }
 }
+
+/* Topic-first roadmap: make the next study move the visual center of gravity. */
+.study-plan { margin-top: 25px; }
+.roadmap-head { align-items: end; padding-top: 0; border-top: 0; margin: 0 0 17px; }
+.roadmap-head .eyebrow { display: block; margin-bottom: 7px; }
+.roadmap-head h3 { font-size: clamp(27px, 3vw, 36px); margin: 0 0 7px; }
+.roadmap-head p { max-width: 780px; line-height: 1.65; }
+.roadmap-head > span { border: 1px solid var(--border); padding: 7px 10px; border-radius: 4px; background: rgba(255,250,241,.6); }
+.roadmap-list { display: grid; grid-template-columns: minmax(0,1fr); gap: 13px; margin-bottom: 28px; }
+.roadmap-item { grid-template-columns: 50px minmax(0,1fr); gap: 19px; padding: clamp(20px,3vw,30px); border-radius: 12px; }
+.roadmap-item.start { background: #fff6e9; box-shadow: inset 4px 0 0 var(--orange), var(--shadow-card); }
+.roadmap-order { font-size: 21px; padding-top: 2px; }
+.roadmap-title h4 { font-size: 21px; line-height: 1.2; margin-right: 5px; }
+.basis-badge { background: #f0e9dc; color: #66543e; border-color: #dbccb5; }
+.roadmap-prereqs { font-size: 11px; }
+.topic-guidance { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; margin: 18px 0 14px; }
+.topic-guidance > div { background: rgba(243,236,223,.68); border: 1px solid #e4d7c4; border-radius: 8px; padding: 14px 16px; min-width: 0; }
+.topic-guidance > div:first-child { grid-row: span 2; }
+.topic-guidance strong { display: block; color: var(--orange-dark); font: 700 9px "Space Mono",monospace; letter-spacing: .8px; text-transform: uppercase; margin-bottom: 7px; }
+.topic-guidance p, .topic-guidance li { font-size: 12px; line-height: 1.7; color: var(--ink); overflow-wrap: anywhere; }
+.topic-guidance ul { margin: 0; padding-left: 17px; }
+.topic-guidance li + li { margin-top: 4px; }
+.topic-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 11px; padding: 13px 0; border-top: 1px solid var(--border); }
+.topic-effort { flex: 1 1 220px; color: var(--muted); font-size: 11px; }
+.topic-rating { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 10px; }
+.topic-rating select { min-height: 37px; padding: 7px 29px 7px 9px; font-size: 10px; }
+.topic-done { min-height: 39px; border: 1px solid var(--orange); border-radius: 6px; padding: 8px 12px; color: var(--orange-dark); background: var(--paper); font-size: 10px; font-weight: 700; }
+.topic-done:hover, .topic-done.done { color: var(--paper); background: var(--orange); }
+.topic-status { font-size: 10px; color: var(--muted); }
+.roadmap-resources { display: flex; flex-wrap: wrap; flex-direction: row; align-items: center; gap: 8px; padding-top: 3px; }
+.roadmap-resources a { display: inline-flex; align-items: center; min-height: 36px; border: 1px solid #dec6a7; background: #fbf2e3; border-radius: 5px; padding: 7px 10px; font-size: 10px; }
+.roadmap-required { font-size: 10px; }
+.roadmap-empty { padding: 30px; }
+.roadmap-empty .primary { margin-top: 18px; }
+.budget-summary { color: var(--muted); font-size: 11px; padding: 0 3px 3px; }
+.priority-blockers { display: grid; gap: 8px; margin: 16px 0 19px; }
+.blocker-note { display: grid; gap: 5px; padding: 13px 16px; background: #f8e9d8; border: 1px solid #dfbc97; border-left: 3px solid var(--orange); border-radius: 6px; }
+.blocker-note > strong { color: var(--orange-dark); font-size: 11px; }
+.blocker-note > span, .blocker-note li { font-size: 11px; line-height: 1.6; }
+.blocker-note ul { padding-left: 18px; margin: 0; }
+.blocker-note li + li { margin-top: 3px; }
+.blocker-note small { font-size: 10px; }
+.weekly-heading { align-items: end; margin-top: 26px; }
+.weekly-heading .eyebrow { display: block; margin-bottom: 4px; }
+.weekly-heading h3 { margin: 0; font-size: 26px; }
+.timeline { padding: 0 22px; overflow: hidden; }
+.week-row { display: grid; grid-template-columns: 145px minmax(0,1fr) 86px; align-items: start; gap: 17px; padding: 18px 0; }
+.week-title { padding-top: 2px; font-size: 13px; }
+.week-title small { font-size: 8px; letter-spacing: .55px; }
+.week-detail { min-width: 0; }
+.week-activities { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.week-activities li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 0 7px; border-bottom: 1px dotted #d9c9b3; font-size: 11px; line-height: 1.5; }
+.week-activities li:last-child { border-bottom: 0; padding-bottom: 0; }
+.week-activities li span { overflow-wrap: anywhere; }
+.week-activities li b { flex: 0 0 auto; color: var(--orange-dark); font: 600 10px "Space Mono",monospace; }
+.week-hours { padding-top: 2px; white-space: nowrap; font: 500 10px "Space Mono",monospace; }
+.week-unmapped, .week-unavailable { color: var(--muted); font-size: 11px; line-height: 1.65; }
+.week-unavailable { padding: 20px; }
+.week-row.exam .week-detail { opacity: .74; }
+.supporting-details { margin: 16px 0; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,250,241,.64); padding: 0 16px; }
+.supporting-details > summary { display: flex; align-items: center; gap: 12px; min-height: 52px; color: var(--orange-dark); font-size: 11px; }
+.supporting-details > summary > span { margin-left: auto; }
+.supporting-details > summary > b { color: var(--orange); font-size: 18px; font-weight: 400; }
+.supporting-details > .warnings { margin: 0 0 12px; }
+.supporting-details > .agent-review { margin: 0 0 15px; }
+.supporting-details > #task-filters { padding-top: 6px; }
+.supporting-details > #task-list { padding-bottom: 8px; }
+.supporting-details > #target-checks { padding: 4px 0 3px; }
+.task-unscheduled { color: var(--orange-dark) !important; }
+.task { box-shadow: none; }
+.task-category-study { border-left: 3px solid var(--orange); }
+details.roadmap-item { display: block; padding: 0; overflow: hidden; }
+.roadmap-summary { display: grid; grid-template-columns: 50px minmax(0,1fr); gap: 19px; align-items: start; padding: clamp(20px,3vw,30px); list-style: none; cursor: pointer; }
+.roadmap-summary::-webkit-details-marker { display: none; }
+.roadmap-summary-main { display: grid; gap: 9px; min-width: 0; }
+.roadmap-summary .roadmap-order { min-height: 32px; }
+.roadmap-topic-name { display: inline-block; font: 400 21px/1.2 "Instrument Serif", Georgia, serif; color: var(--ink); letter-spacing: -.25px; margin-right: 5px; }
+.topic-disclosure-hint { color: var(--muted); font-size: 10px; }
+.roadmap-item[open] .roadmap-summary { padding-bottom: 12px; }
+.roadmap-main { padding: 0 clamp(20px,3vw,30px) 25px 99px; }
+.roadmap-item.start .roadmap-summary { background: rgba(255,255,255,.14); }
+.blocker-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.blocker-actions .text-btn { min-height: 34px; font-size: 10px; padding: 5px 7px; }
+.capacity-notice { padding: 10px 13px; border: 1px solid #dfbc97; border-radius: 6px; background: #f8e9d8; color: #6f422b; font-size: 11px; line-height: 1.55; }
+@media (max-width: 650px) {
+  .roadmap-item { grid-template-columns: 31px minmax(0,1fr); gap: 11px; padding: 16px; }
+  details.roadmap-item { padding: 0; }
+  .roadmap-summary { grid-template-columns: 31px minmax(0,1fr); gap: 11px; padding: 16px; }
+  .roadmap-main { padding: 0 16px 19px 58px; }
+  .roadmap-title h4, .roadmap-topic-name { width: 100%; font-size: 19px; }
+  .topic-guidance { grid-template-columns: minmax(0,1fr); }
+  .topic-guidance > div:first-child { grid-row: auto; }
+  .topic-footer { align-items: stretch; }
+  .topic-effort { flex-basis: 100%; }
+  .topic-rating { flex: 1 1 100%; justify-content: space-between; }
+  .topic-done { flex: 1 1 100%; }
+  .roadmap-head { align-items: flex-start; }
+  .roadmap-head > span { display: none; }
+  .weekly-heading { align-items: flex-start; }
+  .timeline { padding: 0 13px; }
+  .week-row { grid-template-columns: minmax(0,1fr) auto; gap: 8px 12px; }
+  .week-title { grid-column: 1; }
+  .week-hours { grid-column: 2; grid-row: 1; }
+  .week-detail { grid-column: 1 / -1; }
+  .supporting-details { padding: 0 12px; }
+  .supporting-details > summary { gap: 7px; flex-wrap: wrap; padding: 11px 0; }
+  .supporting-details > summary > span { width: calc(100% - 24px); margin-left: 0; order: 3; }
+  .supporting-details > summary > b { margin-left: auto; }
+}

@@ -5,7 +5,7 @@
  * Optional: UI_TEST_URL=https://... CHROMIUM_PATH=/path/to/chromium
  */
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -97,23 +97,15 @@ const fixtureProfile = {
   exam_weeks: ["2026-11-02"], holidays: ["2026-10-25"],
   weekly_pattern: {}, skill_ratings: {}, received_events: [],
 };
-const plan = {
-  id: "ui-fixture-plan", status: "proposed", selected_ids: [listing.id],
-  next_action: "Review Python foundations before preparing your shared project.",
-  profile: fixtureProfile, total_hours_low: 8, total_hours_high: 12, available_hours: 18,
-  warnings: ["Source coverage is partial. This synthetic fixture is only for checking the interface."],
-  weekly_used: { "2026-10-19": 6, "2026-10-26": 4, "2026-11-02": 0 },
-  tasks: [
-    { task_id: "python", title: "Practice Python foundations and explain your approach", category: "Shared", status: "planned", target_ids: [listing.id], hours_high: 4, reason: "Synthetic source-backed preparation fixture." },
-    { task_id: "document", title: "Prepare a target-specific statement of research interests", category: "Documents", status: "planned", target_ids: [listing.id], hours_high: 2 },
-  ],
-  targets: [{ target_id: listing.id, schedule_status: "cannot_certify", eligibility: "unknown", reasons: ["Source details require review."], criteria: [] }],
-  evidence: [{ nodes: ["Python foundations", "PREREQUISITE_OF", "Algorithms"], excerpt: "Python and algorithms required.", source_url: "https://example.org/internships/fixture" }],
-  roadmap: [
-    { key: "python", title: "Python foundations", order: 1, family: "Programming", start_here: true, prerequisites: [], required_by: { [listing.id]: ["skills"] }, resources: [{ title: "Python tutorial with a long source description", url: "https://docs.python.org/3/tutorial/" }], rating: "new", task_status: "planned" },
-    { key: "algorithms", title: "Algorithms and data structures", order: 2, family: "Computer science", prerequisites: ["python"], required_by: { [listing.id]: ["skills"] }, resources: [], task_status: "planned" },
-  ],
-};
+function buildFixturePlan(request = {}) {
+  const result = spawnSync("python", ["-m", "scripts.study_ui_fixture"], {
+    input: JSON.stringify({target_id: listing.id, ...request}),
+    encoding: "utf8", timeout: 10000,
+  });
+  assert.equal(result.status, 0, result.stderr || "Offline planner fixture failed");
+  return JSON.parse(result.stdout);
+}
+const plan = buildFixturePlan();
 
 try {
   let target;
@@ -128,6 +120,8 @@ try {
   const errors = [];
   const unexpectedRequests = [];
   let graphUnavailable = false;
+  let fixtureWithSource = false;
+  const planRequests = [];
   let graphReadsWhileDisconnected = 0;
   client.on("Runtime.exceptionThrown", event => errors.push(event.exceptionDetails.text));
   client.on("Fetch.requestPaused", event => {
@@ -140,7 +134,11 @@ try {
     else if (path === `/api/discovery-runs/${run.id}`) data = run;
     else if (path === "/api/opportunities") data = { opportunities: [] };
     else if (path === "/api/plan/latest") data = { plan: null };
-    else if (path === "/api/plan") data = plan;
+    else if (path === "/api/plan") {
+      const request = JSON.parse(event.request.postData || "{}");
+      planRequests.push(request);
+      data = buildFixturePlan({...request, with_source: fixtureWithSource});
+    }
     else if (path.endsWith("/flags")) data = JSON.parse(event.request.postData || "{}");
     else if (path === "/api/interest-scenarios") {
       client.send("Fetch.continueRequest", { requestId: event.requestId }).catch(error => errors.push(error.message));
@@ -179,7 +177,7 @@ try {
       if (stage === "search") await client.evaluate("showStep('discover','search'); showSearch(); document.querySelector('#advanced-preferences').open=true");
       if (stage === "results") await client.evaluate("(async()=>{state.hunt=window.__fixtureHunt; state.listings=window.__fixtureHunt.result.listings; state.useHuntSelection=true; state.listingSelected=[]; state.selected=[]; showStep('discover','results'); await renderScoutCards(); updateSelected()})()");
       if (stage === "time") await client.evaluate("document.querySelector('[data-listing]').click(); document.querySelector('#setup-plan-btn').click(); document.querySelector('#prep-settings').open=true; document.querySelectorAll('#prep-settings details').forEach(el=>el.open=true)");
-      if (stage === "roadmap") await client.evaluate("setPlan(window.__fixturePlan); showStep('plan','roadmap')");
+      if (stage === "roadmap") await client.evaluate("setPlan(window.__fixturePlan); showStep('plan','roadmap'); document.querySelector('#prep-settings').open=false; document.querySelector('#plan-content').scrollIntoView({block:'start'})");
       if (stage === "evidence") await client.evaluate("showStep('evidence','evidence')");
       await wait(350);
       await client.evaluate("window.scrollTo(0,0)");
@@ -223,6 +221,61 @@ try {
       }
     }
   }
+  // Exercise the actual new controls against real, offline planner responses.
+  // No public fixture endpoint or sign-in bypass is added to the application.
+  await client.evaluate("setPlan(window.__fixturePlan); showStep('plan','roadmap'); state.useHuntSelection=false");
+  assert.equal(await client.evaluate("document.querySelectorAll('#roadmap-list details[open]').length"), 1,
+    "Only the selected topic should initially expose all learning detail");
+  assert.equal(await client.evaluate("document.querySelector('#plan-warnings').closest('details').open"), false);
+  assert.equal(await client.evaluate("document.querySelector('#target-checks').closest('details').open"), false);
+  assert.equal(await client.evaluate("document.querySelectorAll('.week-activities li').length > 0"), true);
+  const firstTask = plan.roadmap.find(entry => entry.start_here).task_ids[0];
+  async function until(expression, message) {
+    for (let attempt=0; attempt<60; attempt++) {
+      if (await client.evaluate(expression)) return;
+      await wait(50);
+    }
+    assert.fail(message);
+  }
+  await client.evaluate("document.querySelector('#roadmap-list details[open] [data-topic-complete]').click()");
+  await until(`state.plan.tasks.find(task=>task.task_id===${JSON.stringify(firstTask)})?.status==='completed'`,
+    "Recommended topic completion did not round-trip through /api/plan");
+  await client.evaluate(`document.querySelector('#roadmap-list [data-topic-complete*="${firstTask}"]').click()`);
+  await until(`state.plan.tasks.find(task=>task.task_id===${JSON.stringify(firstTask)})?.status!=='completed'`,
+    "Recommended topic completion could not be undone");
+  assert.equal(planRequests.at(-1).profile.study_track, "software");
+
+  fixtureWithSource = true;
+  const sourcePlan = buildFixturePlan({with_source: true, profile: {study_track: "source_only"}});
+  await client.evaluate(`setPlan(${JSON.stringify(sourcePlan)})`);
+  await client.evaluate("document.querySelector('#roadmap-list [data-topic-complete]').click()");
+  await until("state.plan.tasks.find(task=>task.task_id==='shared/skill-python-foundation/v1')?.status==='completed'",
+    "Source-linked topic completion control did not use its real task ID");
+  fixtureWithSource = false;
+
+  const zeroPlan = buildFixturePlan({profile: {weekly_hours: 0}});
+  await client.evaluate(`setPlan(${JSON.stringify(zeroPlan)})`);
+  assert.match(await client.evaluate("document.querySelector('#next-action-text').textContent"), /Make time/);
+  assert.equal(await client.evaluate("document.querySelectorAll('#roadmap-list .start-badge').length"), 0);
+  assert.equal(await client.evaluate("document.querySelectorAll('#roadmap-list details[open]').length"), 0);
+
+  const legacyPlan = structuredClone(plan);
+  legacyPlan.study_track = "source_only";
+  legacyPlan.profile.study_track = "source_only";
+  legacyPlan.roadmap = [];
+  await client.evaluate(`setPlan(${JSON.stringify(legacyPlan)}); document.querySelector('#plan-btn').disabled=false; document.querySelector('[data-rebuild-plan]').click()`);
+  await until("state.plan.study_track!=='source_only' && state.plan.roadmap.length>0",
+    "Rebuilding an old plan did not switch to an actual study track");
+  assert.equal(planRequests.at(-1).profile.study_track, "auto");
+
+  const unsafePlan = structuredClone(plan);
+  unsafePlan.roadmap[0].title = '<img src=x onerror="window.__xssFired=1">';
+  unsafePlan.roadmap[0].resources = [{title: "Unsafe URL", url: "javascript:window.__xssFired=1"}];
+  await client.evaluate(`setPlan(${JSON.stringify(unsafePlan)})`);
+  assert.equal(await client.evaluate("!!window.__xssFired || !!document.querySelector('#roadmap-list img')"), false);
+  assert.equal(await client.evaluate("!!document.querySelector('#roadmap-list a[href^=\"javascript:\"]')"), false);
+  await client.evaluate("setPlan(window.__fixturePlan)");
+
   await client.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
   await client.evaluate("showStep('discover','start')");
   assert.equal(await client.evaluate("matchMedia('(prefers-reduced-motion: reduce)').matches"), true);
@@ -248,7 +301,7 @@ try {
   assert.match(await client.evaluate("document.querySelector('#notification').textContent"), /FalkorDB is not connected/);
   assert.equal(graphReadsWhileDisconnected, 0, "Disconnected startup still queries graph-backed endpoints");
   await writeFile(`${directory}/report.json`, JSON.stringify({ mode: "synthetic frontend fixtures, no live graph/provider verification", report, keyboard, motionCount, graphReadsWhileDisconnected, errors }, null, 2));
-  console.log(`PASS: ${report.length} screen/viewport checks; no horizontal overflow, current-step visibility, reduced motion, keyboard focus, disconnected-graph state, and no JavaScript errors. Synthetic frontend fixtures only.`);
+  console.log(`PASS: ${report.length} screen/viewport checks; topic disclosure, real offline-planner completion/undo, source task completion, legacy rebuild, zero capacity, output escaping, focus, reduced motion and disconnected state. No live graph/provider writes.`);
 } finally {
   client?.socket.close();
   chrome.kill("SIGTERM");
